@@ -1,0 +1,18 @@
+<form id="login-form">
+    <h1 class="text-2xl font-semibold mb-6 text-center text-white">Login</h1>
+    <div class="mb-4">
+        <label for="email" class="block text-gray-300 text-sm font-bold mb-2">Email</label>
+        <input type="email" id="email" name="email" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-300 leading-tight focus:outline-none focus:shadow-outline bg-black/20 border-gray-700 focus:border-gray-600" placeholder="Email" required>
+        <div id="email-error" class="text-red-500 text-xs italic mt-1" style="display: none;"></div>
+    </div>
+    <div class="mb-6">
+        <label for="password" class="block text-gray-300 text-sm font-bold mb-2">Password</label>
+        <input type="password" id="password" name="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-300 leading-tight focus:outline-none focus:shadow-outline bg-black/20 border-gray-700 focus:border-gray-600" placeholder="Password" required>
+        <div id="password-error" class="text-red-500 text-xs italic mt-1" style="display: none;"></div>
+    </div>
+    <div id="general-error" class="text-red-500 text-xs italic mb-4" style="display: none;"></div>
+    <button type="submit" class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full transition duration-300 ease-in-out">Login</button>
+    <div class="mt-4 text-center">
+        <a href="#" hx-get="/partials/registration-form" hx-target="#login-form" hx-swap="outerHTML" class="text-sm text-blue-400 hover:text-blue-300 transition duration-150 ease-in-out">Register</a>
+    </div>
+</form>

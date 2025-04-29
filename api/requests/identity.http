@@ -1,0 +1,28 @@
+### Send a GET request to fetch an identity
+GET http://localhost:8081/iam/identities/9223238b-1cf6-4c80-bd79-94b3fb6f3ae9
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJvYmplY3RvcnkiLCJzdWIiOiJhdXRoZW50aWNhdGlvbiIsImF1ZCI6WyJvYmplY3RvcnkiXSwiZXhwIjoxNzQ1MjM4MDU2LCJpYXQiOjE3NDUxNTE2NTYsImp0aSI6IjVlM2Q5MjQ1LWU0OWUtNGM4MS05MmE5LTdiODI5MzgxMzY2MSIsInV1aWQiOiI5MjIzMjM4Yi0xY2Y2LTRjODAtYmQ3OS05NGIzZmI2ZjNhZTkifQ.thhgZqHdsjuccQuHRo75fPv1tmg5SlzJm7inKwULxC4
+
+### Send a POST request to create a new identity
+POST http://localhost:8081/iam/identities
+Content-Type: application/json
+
+{
+  "name": "Nick",
+  "email": "test@example.org",
+  "password": "password",
+  "passwordConfirmation": "password"
+}
+
+
+
+
+
+### Send a POST request to create a new token
+POST http://localhost:8081/iam/tokens
+Content-Type: application/json
+
+{
+  "email": "test@example.org",
+  "password": "password"
+}

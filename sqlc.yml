@@ -1,0 +1,10 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "cmd/api/internal/storage/postgres/queries"
+    schema: "cmd/api/internal/storage/postgres/migrations"
+    gen:
+      go:
+        package: "postgres"
+        out: "cmd/api/internal/storage/postgres"
+        sql_package: "pgx/v5"

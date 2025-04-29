@@ -1,0 +1,62 @@
+services:
+  api:
+    container_name: objectory-api
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    ports:
+      - "8081:8080"
+    volumes:
+      - .:/opt/app/api
+    environment:
+      - DATABASE_URL=postgres://objectory:secret@objectorydb:5432/objectory?sslmode=disable
+      - JWT_KEY=abcdefg1234567
+    depends_on:
+      database:
+        condition: service_healthy
+      atlas_database:
+        condition: service_healthy
+  web:
+    container_name: objectory-web
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/opt/app/web
+    depends_on:
+      api:
+        condition: service_started
+  database:
+    container_name: objectorydb
+    image: postgres:latest
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=objectory
+      - POSTGRES_PASSWORD=secret
+      - POSTGRES_DB=objectory
+    volumes:
+      - ./api/database/:/var/lib/postgresql/data/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U objectory"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  atlas_database:
+    container_name: objectoryatlasdb
+    image: postgres:latest
+    restart: always
+    environment:
+      - POSTGRES_USER=objectory_atlas
+      - POSTGRES_PASSWORD=secret
+      - POSTGRES_DB=objectory_atlas
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U objectory_atlas" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+volumes:
+  database:
