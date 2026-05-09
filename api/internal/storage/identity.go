@@ -33,9 +33,8 @@ func NewIdentityRepository(queries *postgres.Queries, now func() time.Time) *Ide
 // Create writes a new iam.Identity to the database.
 func (ir *IdentityRepository) Create(ctx context.Context, identity iam.Identity) error {
 	now := pgtype.Timestamp{
-		Time:             ir.now(),
-		InfinityModifier: 0,
-		Valid:            true,
+		Time:  ir.now(),
+		Valid: true,
 	}
 
 	err := ir.queries.CreateIdentity(ctx, postgres.CreateIdentityParams{

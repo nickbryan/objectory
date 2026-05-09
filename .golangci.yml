@@ -16,6 +16,7 @@ linters:
     - dupl
     - dupword
     - durationcheck
+    - embeddedstructfieldcheck
     - err113
     - errcheck
     - errchkjson
@@ -47,12 +48,14 @@ linters:
     - ineffassign
     - interfacebloat
     - intrange
+    - iotamixing
     - ireturn
     - maintidx
     - makezero
     - mirror
     - misspell
     - mnd
+    - modernize
     - musttag
     - nakedret
     - nestif
@@ -88,7 +91,7 @@ linters:
     - wastedassign
     - whitespace
     - wrapcheck
-    - wsl
+    - wsl_v5
   settings:
     copyloopvar:
       check-alias: true
@@ -108,25 +111,42 @@ linters:
             - github.com/nickbryan/objectory
             - github.com/nickbryan/slogutil
             - golang.org/x/crypto/bcrypt
+    embeddedstructfieldcheck:
+      empty-line: true
     errcheck:
       check-type-assertions: true
+      verbose: true
     exhaustive:
       check:
         - switch
         - map
       default-signifies-exhaustive: true
     exhaustruct:
+      allow-empty: true
       exclude:
         - .+/httputil\.Endpoint$
+        - ^net/http\.Cookie$
+        - ^github\.com/jackc/pgx/v5/pgtype\.Timestamp$
+        - ^github\.com/jackc/pgx/v5/tracelog\.TraceLog$
     funlen:
       ignore-comments: true
     gocognit:
       min-complexity: 15
+    goconst:
+      ignore-tests: true
+      ignore-string-values:
+        - 'partials/.+'
     gocyclo:
       min-complexity: 15
     grouper:
       const-require-grouping: true
       import-require-grouping: true
+    iface:
+      enable:
+        - identical
+        - unused
+        - opaque
+        - unexported
     interfacebloat:
       max: 3
     ireturn:
@@ -148,6 +168,8 @@ linters:
     nolintlint:
       require-explanation: true
       require-specific: true
+    paralleltest:
+      check-cleanup: true
     rowserrcheck:
       packages:
         - github.com/jackc/pgx
@@ -165,13 +187,12 @@ linters:
     tagalign:
       order:
         - json
-        - query
-        - path
-        - header
-        - default
+        - form
+        - param
         - validate
     usestdlibvars:
       time-month: true
+      time-date-month: true
       time-layout: true
       crypto-hash: true
       default-rpc-path: true
@@ -194,9 +215,6 @@ linters:
           - maintidx
           - nestif
         path: _test\.go
-      - linters:
-          - goconst
-        path: (.+)_test\.go
     paths:
       - third_party$
       - builtin$

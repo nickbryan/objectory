@@ -63,28 +63,18 @@ psql: guard-cmd ##@Database
 	docker compose exec database psql "postgres://objectory:secret@localhost:5432/objectory?sslmode=disable" -c "$(cmd)"
 
 lint: ##@Test
-	docker run --rm -t -v $(shell pwd):/app -w /app \
-	--user $(shell id -u):$(shell id -g) \
-	-v $(shell go env GOCACHE):/.cache/go-build -e GOCACHE=/.cache/go-build \
-	-v $(shell go env GOMODCACHE):/.cache/mod -e GOMODCACHE=/.cache/mod \
-	-v ~/.cache/golangci-lint:/.cache/golangci-lint -e GOLANGCI_LINT_CACHE=/.cache/golangci-lint \
-	golangci/golangci-lint:v2.1.2 golangci-lint run $(args) ./...
+	go tool golangci-lint run $(args) ./...
 
 lint-fix: ##@Test
 	make lint args="--fix"
 
 dbname?=objectory
 migrate: ##@Database
-	docker compose exec api atlas migrate apply \
-			--url "postgres://objectory:secret@objectorydb:5432/$(dbname)?sslmode=disable" \
-    		--dir "file://cmd/api/internal/storage/postgres/migrations/"
+	go tool goose -dir api/internal/storage/postgres/migrations postgres \
+		"postgres://objectory:secret@localhost:5432/$(dbname)?sslmode=disable" up
 
-migrations: guard-name ##@Database
-	docker compose exec api atlas migrate diff $(name) \
-		--dir "file://cmd/api/internal/storage/postgres/migrations/" \
-		--to "file://cmd/api/internal/storage/postgres/schema/" \
-		--dev-url "postgres://objectory_atlas:secret@objectoryatlasdb:5432/objectory_atlas?sslmode=disable"
-	docker compose exec api sqlc generate
+migration: guard-name ##@Database
+	go tool goose -dir api/internal/storage/postgres/migrations create $(name) sql
 
 sqlc: ##@Database
-	docker compose exec api sqlc generate
+	go tool sqlc generate
