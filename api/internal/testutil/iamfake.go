@@ -19,8 +19,9 @@ type IdentityRepository struct {
 	byID    map[uuid.UUID]iam.Identity
 	byEmail map[string]uuid.UUID
 
-	// CreateErr, FindErr, FindByEmailErr force the next call to that method
-	// to return the given error before touching the in-memory store.
+	// CreateErr, FindErr, FindByEmailErr, when non-nil, cause every call to
+	// that method to return the given error before touching the in-memory
+	// store. Clear the field to resume normal behaviour.
 	CreateErr      error
 	FindErr        error
 	FindByEmailErr error
@@ -91,7 +92,8 @@ type UUIDV4Generator struct {
 	UUIDs []uuid.UUID
 	idx   int
 
-	// Err forces the next call to return this error.
+	// Err, when non-nil, causes every call to GenerateUUIDV4 to return this
+	// error. Clear it to resume returning seeded UUIDs.
 	Err error
 }
 
