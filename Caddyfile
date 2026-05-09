@@ -1,0 +1,7 @@
+{
+	local_certs
+}
+
+localhost {
+	reverse_proxy web:8080
+}

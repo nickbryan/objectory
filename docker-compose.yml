@@ -10,21 +10,32 @@ services:
       - .:/opt/app/api
     environment:
       - DATABASE_URL=postgres://objectory:secret@objectorydb:5432/objectory?sslmode=disable
-      - JWT_KEY=abcdefg1234567
+      - JWT_KEY=local-dev-jwt-key-change-in-production!
     depends_on:
       database:
         condition: service_healthy
-      atlas_database:
-        condition: service_healthy
+  caddy:
+    container_name: objectory-caddy
+    image: caddy:latest
+    ports:
+      - "443:443"
+      - "8080:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_started
   web:
     container_name: objectory-web
     build:
       context: .
       dockerfile: web/Dockerfile
-    ports:
-      - "8080:8080"
     volumes:
       - .:/opt/app/web
+    environment:
+      - API_BASE_URL=http://api:8080
     depends_on:
       api:
         condition: service_started
@@ -45,18 +56,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-  atlas_database:
-    container_name: objectoryatlasdb
-    image: postgres:latest
-    restart: always
-    environment:
-      - POSTGRES_USER=objectory_atlas
-      - POSTGRES_PASSWORD=secret
-      - POSTGRES_DB=objectory_atlas
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U objectory_atlas" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 volumes:
   database:
+  caddy_data:
+  caddy_config:
