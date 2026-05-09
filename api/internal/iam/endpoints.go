@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -24,22 +25,27 @@ type UUIDV4Generator interface {
 
 // Endpoints returns the EndpointGroup for the IAM API. The jwtKey is used to
 // sign and verify JWTs; it must not be empty (validated by the caller).
+// passwordCost is forwarded to NewPasswordHash; main.go passes
+// bcrypt.DefaultCost. now is the clock used for JWT iat/exp; main.go passes
+// time.Now.
 func Endpoints(
 	logger *slog.Logger,
 	uuidV4Generator UUIDV4Generator,
 	identityRepository IdentityRepository,
 	jwtKey string,
+	passwordCost int,
+	now func() time.Time,
 ) httputil.EndpointGroup {
 	publicEndpoints := httputil.EndpointGroup{
 		{
 			Path:    "/identities",
 			Method:  http.MethodPost,
-			Handler: identityCreateHandler(logger, uuidV4Generator, identityRepository),
+			Handler: identityCreateHandler(logger, uuidV4Generator, identityRepository, passwordCost),
 		},
 		{
 			Path:    "/tokens",
 			Method:  http.MethodPost,
-			Handler: tokenCreateHandler(logger, identityRepository, jwtKey),
+			Handler: tokenCreateHandler(logger, identityRepository, uuidV4Generator, jwtKey, now),
 		},
 	}
 
@@ -51,9 +57,17 @@ func Endpoints(
 		},
 	}.WithGuard(NewJWTGuard(logger, jwtKey))
 
+	// TODO: simplify with slices.Concat?
 	endpoints := make(httputil.EndpointGroup, 0, len(publicEndpoints)+len(authEndpoints))
 	endpoints = append(endpoints, publicEndpoints...)
 	endpoints = append(endpoints, authEndpoints...)
 
 	return endpoints.WithPrefix("/iam")
+}
+
+// envelope is the API's standard JSON response shape. Adding optional
+// top-level fields (e.g. Meta, Links) is a matter of adding `omitempty`
+// fields here; existing call sites stay unchanged.
+type envelope struct {
+	Data any `json:"data"`
 }

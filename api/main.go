@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/tracelog"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/nickbryan/httputil"
 	"github.com/nickbryan/slogutil"
@@ -61,7 +62,7 @@ func main() {
 	identityRepository := storage.NewIdentityRepository(database, time.Now)
 
 	server.Register(
-		iam.Endpoints(logger, uuidV4Generator{}, identityRepository, jwtKey)...,
+		iam.Endpoints(logger, uuidV4Generator{}, identityRepository, jwtKey, bcrypt.DefaultCost, time.Now)...,
 	)
 
 	server.Serve(ctx)

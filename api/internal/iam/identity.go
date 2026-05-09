@@ -25,13 +25,6 @@ var (
 	ErrIdentityNotFound = errors.New("identity not found")
 )
 
-// envelope is the API's standard JSON response shape. Adding optional
-// top-level fields (e.g. Meta, Links) is a matter of adding `omitempty`
-// fields here; existing call sites stay unchanged.
-type envelope struct {
-	Data any `json:"data"`
-}
-
 // An Identity represents the information required to
 // identify a user of the application.
 type Identity struct {
@@ -46,10 +39,11 @@ type PasswordHash struct {
 	hash []byte
 }
 
-// NewPasswordHash creates a new PasswordHash from a password string.
-// Internally, a bcrypt hash is calculated and stored for future comparison.
-func NewPasswordHash(password string) (PasswordHash, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+// NewPasswordHash creates a new PasswordHash from a password string at the
+// given bcrypt cost. cost should be bcrypt.DefaultCost in production;
+// bcrypt.MinCost in tests.
+func NewPasswordHash(password string, cost int) (PasswordHash, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), cost)
 	if err != nil {
 		return PasswordHash{}, fmt.Errorf("generating hash from password: %w", err)
 	}
@@ -103,7 +97,7 @@ func identityMeHandler(logger *slog.Logger, identities IdentityRepository) http.
 	})
 }
 
-func identityCreateHandler(logger *slog.Logger, uuidGenerator UUIDV4Generator, identities IdentityRepository) http.Handler {
+func identityCreateHandler(logger *slog.Logger, uuidGenerator UUIDV4Generator, identities IdentityRepository, passwordCost int) http.Handler {
 	type (
 		request struct {
 			Name                 string `json:"name"                 validate:"required,max=64"`
@@ -124,7 +118,7 @@ func identityCreateHandler(logger *slog.Logger, uuidGenerator UUIDV4Generator, i
 			return nil, problem.ServerError(r.Request)
 		}
 
-		passwordHash, err := NewPasswordHash(r.Data.Password)
+		passwordHash, err := NewPasswordHash(r.Data.Password, passwordCost)
 		if err != nil {
 			logger.ErrorContext(r.Context(), "Failed to create password hash for new Identity", slog.Any("error", err))
 			return nil, problem.ServerError(r.Request)

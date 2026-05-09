@@ -13,8 +13,14 @@ import (
 	"github.com/nickbryan/httputil/problem"
 )
 
-func tokenCreateHandler(logger *slog.Logger, identities IdentityRepository, jwtKey string) http.Handler {
+func tokenCreateHandler(logger *slog.Logger, identities IdentityRepository, uuidGenerator UUIDV4Generator, jwtKey string, now func() time.Time) http.Handler {
 	const oneDay = 24 * time.Hour
+
+	// uuidGenerator and now are wired through here; their bodies are used in Task 7.
+	// Keep `_ = ...` to satisfy linters that flag unused parameters until Task 7
+	// removes them.
+	_ = uuidGenerator
+	_ = now
 
 	type (
 		request struct {
