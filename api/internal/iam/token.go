@@ -16,12 +16,6 @@ import (
 func tokenCreateHandler(logger *slog.Logger, identities IdentityRepository, uuidGenerator UUIDV4Generator, jwtKey string, now func() time.Time) http.Handler {
 	const oneDay = 24 * time.Hour
 
-	// Task 7: replace uuid.NewRandom() below with uuidGenerator.GenerateUUIDV4(),
-	// and the two time.Now() calls in the JWT claims with now(). The discard
-	// assignments suppress unused-parameter lints until that wiring lands.
-	_ = uuidGenerator
-	_ = now
-
 	type (
 		request struct {
 			Email    string `json:"email"    validate:"required,email"`
@@ -46,21 +40,23 @@ func tokenCreateHandler(logger *slog.Logger, identities IdentityRepository, uuid
 			return nil, problem.Unauthorized(r.Request)
 		}
 
-		jwtID, err := uuid.NewRandom()
+		jtiBytes, err := uuidGenerator.GenerateUUIDV4()
 		if err != nil {
 			logger.WarnContext(r.Context(), "Failed to generate uuid for jwt token", slog.Any("error", err))
 			return nil, problem.ServerError(r.Request)
 		}
+		jti := uuid.UUID(jtiBytes)
 
+		issuedAt := now()
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims{
 			RegisteredClaims: jwt.RegisteredClaims{
 				Issuer:    "objectory",
 				Subject:   "authentication",
 				Audience:  jwt.ClaimStrings{"objectory"},
-				ExpiresAt: jwt.NewNumericDate(time.Now().Add(oneDay)),
+				ExpiresAt: jwt.NewNumericDate(issuedAt.Add(oneDay)),
 				NotBefore: nil,
-				IssuedAt:  jwt.NewNumericDate(time.Now()),
-				ID:        jwtID.String(),
+				IssuedAt:  jwt.NewNumericDate(issuedAt),
+				ID:        jti.String(),
 			},
 			UUID: identity.ID,
 		})
