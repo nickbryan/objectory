@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"os"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/golang-jwt/jwt/v5/request"
@@ -16,6 +15,7 @@ import (
 
 type claims struct {
 	jwt.RegisteredClaims
+
 	UUID uuid.UUID `json:"uuid"`
 }
 
@@ -28,11 +28,15 @@ func CurrentIdentityFromContext(ctx context.Context) (uuid.UUID, bool) {
 	return identity, ok
 }
 
-func NewJWTGuard(logger *slog.Logger) httputil.GuardFunc {
+// NewJWTGuard returns a GuardFunc that validates a Bearer JWT from the
+// Authorization header, signed with jwtKey. On success it stores the
+// identity UUID in the request context; on failure it returns a 403
+// Forbidden problem response.
+func NewJWTGuard(logger *slog.Logger, jwtKey string) httputil.GuardFunc {
 	return func(r *http.Request) (*http.Request, error) {
-		token, err := request.ParseFromRequest(r, request.BearerExtractor{}, func(_ *jwt.Token) (interface{}, error) {
-			return []byte(os.Getenv("JWT_KEY")), nil
-		}, request.WithClaims(&claims{})) //nolint:exhaustruct
+		token, err := request.ParseFromRequest(r, request.BearerExtractor{}, func(_ *jwt.Token) (any, error) {
+			return []byte(jwtKey), nil
+		}, request.WithClaims(&claims{}))
 		if err != nil {
 			logger.InfoContext(r.Context(), "Authentication denied invalid jwt", slog.Any("error", err))
 			return nil, problem.Forbidden(r)

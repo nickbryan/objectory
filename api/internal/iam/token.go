@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -14,7 +13,7 @@ import (
 	"github.com/nickbryan/httputil/problem"
 )
 
-func tokenCreateHandler(logger *slog.Logger, identities IdentityRepository) http.Handler {
+func tokenCreateHandler(logger *slog.Logger, identities IdentityRepository, jwtKey string) http.Handler {
 	const oneDay = 24 * time.Hour
 
 	type (
@@ -31,7 +30,7 @@ func tokenCreateHandler(logger *slog.Logger, identities IdentityRepository) http
 	return httputil.NewHandler(func(r httputil.RequestData[request]) (*httputil.Response, error) {
 		identity, err := identities.FindByEmail(r.Context(), r.Data.Email)
 		if errors.Is(err, ErrIdentityNotFound) {
-			return nil, problem.NotFound(r.Request)
+			return nil, problem.Unauthorized(r.Request)
 		} else if err != nil {
 			logger.WarnContext(r.Context(), "Failed to find identity by email when creating new token", slog.Any("error", err))
 			return nil, problem.ServerError(r.Request)
@@ -60,12 +59,12 @@ func tokenCreateHandler(logger *slog.Logger, identities IdentityRepository) http
 			UUID: identity.ID,
 		})
 
-		tokenString, err := token.SignedString([]byte(os.Getenv("JWT_KEY")))
+		tokenString, err := token.SignedString([]byte(jwtKey))
 		if err != nil {
 			logger.WarnContext(r.Context(), "Failed to create signed token string", slog.Any("error", err))
 			return nil, problem.ServerError(r.Request)
 		}
 
-		return httputil.Created(response{Token: tokenString})
+		return httputil.Created(envelope{Data: response{Token: tokenString}})
 	})
 }

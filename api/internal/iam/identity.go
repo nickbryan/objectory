@@ -1,3 +1,5 @@
+// Package iam implements the Identity and Access Management domain,
+// including identity creation, authentication, and JWT-based authorization.
 package iam
 
 import (
@@ -16,12 +18,19 @@ import (
 var (
 	// ErrDuplicateIdentity is returned when attempting to create an Identity that
 	// already exists.
-	ErrDuplicateIdentity = errors.New("an identity must me unique")
+	ErrDuplicateIdentity = errors.New("an identity must be unique")
 
 	// ErrIdentityNotFound is used when an entity cannot be found with the given
 	// identifier.
 	ErrIdentityNotFound = errors.New("identity not found")
 )
+
+// envelope is the API's standard JSON response shape. Adding optional
+// top-level fields (e.g. Meta, Links) is a matter of adding `omitempty`
+// fields here; existing call sites stay unchanged.
+type envelope struct {
+	Data any `json:"data"`
+}
 
 // An Identity represents the information required to
 // identify a user of the application.
@@ -64,9 +73,7 @@ func (h PasswordHash) String() string {
 	return string(h.hash)
 }
 
-func identityLookupHandler(logger *slog.Logger, identities IdentityRepository) http.Handler {
-	guardOpt := httputil.WithHandlerGuard(NewJWTGuard(logger))
-
+func identityMeHandler(logger *slog.Logger, identities IdentityRepository) http.Handler {
 	type response struct {
 		ID    string `json:"id"`
 		Name  string `json:"name"`
@@ -74,24 +81,13 @@ func identityLookupHandler(logger *slog.Logger, identities IdentityRepository) h
 	}
 
 	return httputil.NewHandler(func(r httputil.RequestEmpty) (*httputil.Response, error) {
-		identifier, err := uuid.Parse(r.PathValue("id"))
-		if err != nil {
-			logger.ErrorContext(r.Context(), "Failed parsing UUID for Identity lookup", slog.Any("error", err))
-			return nil, problem.ServerError(r.Request)
-		}
-
 		currentIdentity, ok := CurrentIdentityFromContext(r.Context())
 		if !ok {
 			logger.ErrorContext(r.Context(), "Failed to get current identity from context")
 			return nil, problem.ServerError(r.Request)
 		}
 
-		if identifier != currentIdentity {
-			logger.WarnContext(r.Context(), "Attempted to access Identity that is not owned by current Identity")
-			return nil, problem.Forbidden(r.Request)
-		}
-
-		identity, err := identities.Find(r.Context(), identifier)
+		identity, err := identities.Find(r.Context(), currentIdentity)
 		if errors.Is(err, ErrIdentityNotFound) {
 			return nil, problem.NotFound(r.Request)
 		} else if err != nil {
@@ -99,12 +95,12 @@ func identityLookupHandler(logger *slog.Logger, identities IdentityRepository) h
 			return nil, problem.ServerError(r.Request)
 		}
 
-		return httputil.OK(response{
+		return httputil.OK(envelope{Data: response{
 			ID:    identity.ID.String(),
 			Name:  identity.Name,
 			Email: identity.Email,
-		})
-	}, guardOpt)
+		}})
+	})
 }
 
 func identityCreateHandler(logger *slog.Logger, uuidGenerator UUIDV4Generator, identities IdentityRepository) http.Handler {
@@ -142,12 +138,17 @@ func identityCreateHandler(logger *slog.Logger, uuidGenerator UUIDV4Generator, i
 		}
 
 		if err = identities.Create(r.Context(), identity); err != nil {
+			if errors.Is(err, ErrDuplicateIdentity) {
+				return nil, problem.ResourceExists(r.Request)
+			}
+
 			logger.ErrorContext(r.Context(), "Failed to create new Identity", slog.Any("error", err))
+
 			return nil, problem.ServerError(r.Request)
 		}
 
 		logger.InfoContext(r.Context(), "Successfully created new Identity", slog.String("id", identity.ID.String()))
 
-		return httputil.Created(map[string]response{"data": {ID: identity.ID.String()}})
+		return httputil.Created(envelope{Data: response{ID: identity.ID.String()}})
 	})
 }
