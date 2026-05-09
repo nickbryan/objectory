@@ -16,9 +16,9 @@ import (
 func tokenCreateHandler(logger *slog.Logger, identities IdentityRepository, uuidGenerator UUIDV4Generator, jwtKey string, now func() time.Time) http.Handler {
 	const oneDay = 24 * time.Hour
 
-	// uuidGenerator and now are wired through here; their bodies are used in Task 7.
-	// Keep `_ = ...` to satisfy linters that flag unused parameters until Task 7
-	// removes them.
+	// Task 7: replace uuid.NewRandom() below with uuidGenerator.GenerateUUIDV4(),
+	// and the two time.Now() calls in the JWT claims with now(). The discard
+	// assignments suppress unused-parameter lints until that wiring lands.
 	_ = uuidGenerator
 	_ = now
 
