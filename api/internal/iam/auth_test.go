@@ -125,10 +125,11 @@ func signJWTWithKey(t *testing.T, key string) string {
 		UUID uuid.UUID `json:"uuid"`
 	}
 
+	now := time.Now()
 	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, testClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			IssuedAt:  jwt.NewNumericDate(testutil.FixedTime),
-			ExpiresAt: jwt.NewNumericDate(testutil.FixedTime.Add(time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour)),
 		},
 		UUID: testutil.KnownIdentityID,
 	})
@@ -148,10 +149,11 @@ func signExpiredJWT(t *testing.T) string {
 		UUID uuid.UUID `json:"uuid"`
 	}
 
+	now := time.Now()
 	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, testClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			IssuedAt:  jwt.NewNumericDate(testutil.FixedTime.Add(-2 * time.Hour)),
-			ExpiresAt: jwt.NewNumericDate(testutil.FixedTime.Add(-time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(now.Add(-2 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(now.Add(-time.Hour)),
 		},
 		UUID: testutil.KnownIdentityID,
 	})

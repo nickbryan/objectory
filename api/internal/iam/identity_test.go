@@ -233,6 +233,10 @@ func TestIdentityMeHandler_NotFound(t *testing.T) {
 // signTestJWT signs a JWT for the given identity using testutil.JWTKey,
 // matching the iam package's claim shape. Used by tests that exercise
 // authenticated endpoints behind the JWT guard.
+//
+// Issued-at and expires-at are anchored to time.Now() (not testutil.FixedTime)
+// because the production JWT guard validates exp against the wall clock; a
+// fixed-time helper would silently expire and start failing tests.
 func signTestJWT(t *testing.T, identityID uuid.UUID) string {
 	t.Helper()
 
@@ -241,13 +245,14 @@ func signTestJWT(t *testing.T, identityID uuid.UUID) string {
 		UUID uuid.UUID `json:"uuid"`
 	}
 
+	now := time.Now()
 	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, testClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    "objectory",
 			Subject:   "authentication",
 			Audience:  jwt.ClaimStrings{"objectory"},
-			IssuedAt:  jwt.NewNumericDate(testutil.FixedTime),
-			ExpiresAt: jwt.NewNumericDate(testutil.FixedTime.Add(24 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour)),
 			ID:        uuid.NewString(),
 		},
 		UUID: identityID,
