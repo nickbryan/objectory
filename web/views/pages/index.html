@@ -1,0 +1,7 @@
+{{ template "layouts/base.html" . }}
+{{ define "title" }}Login / Register{{ end }}
+{{ define "content" }}
+<div id="form-container">
+    {{ template "partials/forms/login.html" . }}
+</div>
+{{ end }}

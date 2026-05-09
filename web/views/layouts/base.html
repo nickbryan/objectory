@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+        <link rel="stylesheet" href="/static/main.css">
+        <title>{{ block "title" . }}Objectory{{ end }}</title>
+    </head>
+    <body>
+        <div class="container">
+            {{ block "content" . }}{{ end }}
+        </div>
+    </body>
+</html>

@@ -1,0 +1,11 @@
+{{ template "layouts/base.html" . }}
+{{ define "title" }}{{ .Title }}{{ end }}
+{{ define "content" }}
+<div class="error-content">
+    <h1 class="form-title">{{ .Title }}</h1>
+    <p class="error-message">{{ .Detail }}</p>
+    <div class="form-footer">
+        <a href="/" class="form-link">Go to Home</a>
+    </div>
+</div>
+{{ end }}

@@ -1,0 +1,9 @@
+{{ template "layouts/base.html" . }}
+{{ define "title" }}Dashboard{{ end }}
+{{ define "content" }}
+<div class="dashboard-content">
+    <h1 class="form-title">Welcome, {{ .Name }}!</h1>
+    <p class="dashboard-email">{{ .Email }}</p>
+    <button type="button" class="btn-primary btn-logout" hx-post="/actions/logout">Logout</button>
+</div>
+{{ end }}

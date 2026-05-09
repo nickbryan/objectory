@@ -1,29 +1,46 @@
 package auth
 
 import (
-	"html/template"
 	"log/slog"
 	"net/http"
 
 	"github.com/nickbryan/httputil"
+
+	"github.com/nickbryan/objectory/web/internal/api"
 )
 
-func Endpoints(logger *slog.Logger, views *template.Template) httputil.EndpointGroup {
+// Endpoints returns all auth-related HTTP routes.
+func Endpoints(logger *slog.Logger, iamClient *api.IAMClient) httputil.EndpointGroup {
 	return httputil.EndpointGroup{
 		{
 			Method:  http.MethodGet,
 			Path:    "/",
-			Handler: indexHandler(logger, views),
+			Handler: indexHandler(),
 		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/partials/login-form",
-			Handler: loginFormHandler(logger, views),
+			Handler: loginFormHandler(),
 		},
 		{
 			Method:  http.MethodGet,
 			Path:    "/partials/registration-form",
-			Handler: registrationFormHandler(logger, views),
+			Handler: registrationFormHandler(),
+		},
+		{
+			Method:  http.MethodPost,
+			Path:    "/actions/register",
+			Handler: identityCreateHandler(logger, iamClient),
+		},
+		{
+			Method:  http.MethodPost,
+			Path:    "/actions/login",
+			Handler: sessionCreateHandler(logger, iamClient),
+		},
+		{
+			Method:  http.MethodPost,
+			Path:    "/actions/logout",
+			Handler: sessionDeleteHandler(),
 		},
 	}
 }
