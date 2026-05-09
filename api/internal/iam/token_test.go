@@ -3,6 +3,7 @@ package iam_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -81,5 +82,113 @@ func TestTokenCreateHandler_Success(t *testing.T) {
 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("claims mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestTokenCreateHandler_Errors(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		seed       func(*testutil.IdentityRepository)
+		body       string
+		repoErr    func(*testutil.IdentityRepository)
+		uuidErr    error
+		wantStatus int
+		wantBody   string
+	}{
+		"missing email": {
+			body:       `{"password": "supersecret"}`,
+			wantStatus: http.StatusUnprocessableEntity,
+			wantBody: `{
+				"type": "https://github.com/nickbryan/httputil/blob/main/docs/problems/constraint-violation.md",
+				"title": "Constraint Violation",
+				"status": 422,
+				"code": "422-02",
+				"detail": "The request data violated one or more validation constraints",
+				"instance": "/iam/tokens",
+				"violations": [
+					{"detail": "is required", "pointer": "/email"}
+				]
+			}`,
+		},
+		"identity not found": {
+			body:       `{"email": "missing@example.com", "password": "supersecret"}`,
+			wantStatus: http.StatusUnauthorized,
+			wantBody: `{
+				"type": "https://github.com/nickbryan/httputil/blob/main/docs/problems/unauthorized.md",
+				"title": "Unauthorized",
+				"status": 401,
+				"code": "401-01",
+				"detail": "You must be authenticated to POST this resource",
+				"instance": "/iam/tokens"
+			}`,
+		},
+		"wrong password": {
+			seed:       func(r *testutil.IdentityRepository) { r.Seed(testutil.KnownIdentity()) },
+			body:       `{"email": "known@example.com", "password": "wrong-password"}`,
+			wantStatus: http.StatusUnauthorized,
+			wantBody: `{
+				"type": "https://github.com/nickbryan/httputil/blob/main/docs/problems/unauthorized.md",
+				"title": "Unauthorized",
+				"status": 401,
+				"code": "401-01",
+				"detail": "You must be authenticated to POST this resource",
+				"instance": "/iam/tokens"
+			}`,
+		},
+		"repository unexpected error": {
+			body:       `{"email": "x@example.com", "password": "supersecret"}`,
+			repoErr:    func(r *testutil.IdentityRepository) { r.FindByEmailErr = errors.New("connection refused") },
+			wantStatus: http.StatusInternalServerError,
+			wantBody: `{
+				"type": "https://github.com/nickbryan/httputil/blob/main/docs/problems/server-error.md",
+				"title": "Server Error",
+				"status": 500,
+				"code": "500-01",
+				"detail": "The server encountered an unexpected internal error",
+				"instance": "/iam/tokens"
+			}`,
+		},
+		"uuid generation fails": {
+			seed:       func(r *testutil.IdentityRepository) { r.Seed(testutil.KnownIdentity()) },
+			body:       `{"email": "known@example.com", "password": "correct-horse-battery-staple"}`,
+			uuidErr:    errors.New("entropy exhausted"),
+			wantStatus: http.StatusInternalServerError,
+			wantBody: `{
+				"type": "https://github.com/nickbryan/httputil/blob/main/docs/problems/server-error.md",
+				"title": "Server Error",
+				"status": 500,
+				"code": "500-01",
+				"detail": "The server encountered an unexpected internal error",
+				"instance": "/iam/tokens"
+			}`,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			repo := testutil.NewIdentityRepository()
+			if tc.seed != nil {
+				tc.seed(repo)
+			}
+			if tc.repoErr != nil {
+				tc.repoErr(repo)
+			}
+
+			gen := testutil.NewUUIDV4Generator(uuid.MustParse("44444444-4444-4444-4444-444444444444"))
+			gen.Err = tc.uuidErr
+
+			server := newServer(t, repo, gen)
+
+			req := httptest.NewRequest(http.MethodPost, "/iam/tokens", bytes.NewBufferString(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+
+			server.ServeHTTP(rec, req)
+
+			testutil.ProblemResponse(t, rec, tc.wantStatus, tc.wantBody)
+		})
 	}
 }
