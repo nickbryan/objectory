@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
@@ -176,4 +178,84 @@ func TestIdentityCreateHandler_Errors(t *testing.T) {
 			testutil.ProblemResponse(t, rec, tc.wantStatus, tc.wantBody)
 		})
 	}
+}
+
+func TestIdentityMeHandler_Success(t *testing.T) {
+	t.Parallel()
+
+	repo := testutil.NewIdentityRepository()
+	repo.Seed(testutil.KnownIdentity())
+
+	server := newServer(t, repo, testutil.NewUUIDV4Generator())
+
+	token := signTestJWT(t, testutil.KnownIdentityID)
+
+	req := httptest.NewRequest(http.MethodGet, "/iam/identities/me", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	server.ServeHTTP(rec, req)
+
+	testutil.JSONResponse(t, rec, http.StatusOK, `{
+		"data": {
+			"id": "00000000-0000-0000-0000-000000000001",
+			"name": "Known Test User",
+			"email": "known@example.com"
+		}
+	}`)
+}
+
+func TestIdentityMeHandler_NotFound(t *testing.T) {
+	t.Parallel()
+
+	repo := testutil.NewIdentityRepository()
+	// Seed with a different identity so the JWT's UUID is not findable.
+	server := newServer(t, repo, testutil.NewUUIDV4Generator())
+
+	token := signTestJWT(t, testutil.KnownIdentityID)
+
+	req := httptest.NewRequest(http.MethodGet, "/iam/identities/me", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	server.ServeHTTP(rec, req)
+
+	testutil.ProblemResponse(t, rec, http.StatusNotFound, `{
+		"type": "https://github.com/nickbryan/httputil/blob/main/docs/problems/not-found.md",
+		"title": "Not Found",
+		"status": 404,
+		"code": "404-01",
+		"detail": "The requested resource was not found",
+		"instance": "/iam/identities/me"
+	}`)
+}
+
+// signTestJWT signs a JWT for the given identity using testutil.JWTKey,
+// matching the iam package's claim shape. Used by tests that exercise
+// authenticated endpoints behind the JWT guard.
+func signTestJWT(t *testing.T, identityID uuid.UUID) string {
+	t.Helper()
+
+	type testClaims struct {
+		jwt.RegisteredClaims
+		UUID uuid.UUID `json:"uuid"`
+	}
+
+	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, testClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    "objectory",
+			Subject:   "authentication",
+			Audience:  jwt.ClaimStrings{"objectory"},
+			IssuedAt:  jwt.NewNumericDate(testutil.FixedTime),
+			ExpiresAt: jwt.NewNumericDate(testutil.FixedTime.Add(24 * time.Hour)),
+			ID:        uuid.NewString(),
+		},
+		UUID: identityID,
+	})
+
+	signed, err := tok.SignedString([]byte(testutil.JWTKey))
+	if err != nil {
+		t.Fatalf("sign test jwt: %v", err)
+	}
+	return signed
 }
