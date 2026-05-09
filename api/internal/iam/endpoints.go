@@ -57,7 +57,6 @@ func Endpoints(
 		},
 	}.WithGuard(NewJWTGuard(logger, jwtKey))
 
-	// TODO: simplify with slices.Concat?
 	endpoints := make(httputil.EndpointGroup, 0, len(publicEndpoints)+len(authEndpoints))
 	endpoints = append(endpoints, publicEndpoints...)
 	endpoints = append(endpoints, authEndpoints...)
