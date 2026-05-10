@@ -3,7 +3,6 @@ package iam_test
 import (
 	"bytes"
 	"errors"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -15,27 +14,28 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/nickbryan/httputil"
+	"github.com/nickbryan/slogutil"
+	"github.com/nickbryan/slogutil/slogmem"
 
 	"github.com/nickbryan/objectory/api/internal/iam"
 	"github.com/nickbryan/objectory/api/internal/testutil"
 )
 
-func quietLogger() *slog.Logger {
-	return slog.New(slog.NewJSONHandler(io.Discard, nil))
-}
-
-func newServer(t *testing.T, repo iam.IdentityRepository, gen iam.UUIDV4Generator) *httputil.Server {
+func newServer(t *testing.T, repo iam.IdentityRepository, gen iam.UUIDV4Generator) (*httputil.Server, *slogmem.LoggedRecords) {
 	t.Helper()
-	server := httputil.NewServer(quietLogger())
+
+	logger, records := slogutil.NewInMemoryLogger(slog.LevelDebug)
+	server := httputil.NewServer(logger)
 	server.Register(iam.Endpoints(
-		quietLogger(),
+		logger,
 		gen,
 		repo,
 		testutil.JWTKey,
 		bcrypt.MinCost,
 		testutil.Clock(),
 	)...)
-	return server
+
+	return server, records
 }
 
 func TestIdentityCreateHandler_Success(t *testing.T) {
@@ -45,7 +45,7 @@ func TestIdentityCreateHandler_Success(t *testing.T) {
 	newID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
 	gen := testutil.NewUUIDV4Generator(newID)
 
-	server := newServer(t, repo, gen)
+	server, records := newServer(t, repo, gen)
 
 	body := bytes.NewBufferString(`{
 		"name": "Alice",
@@ -55,6 +55,7 @@ func TestIdentityCreateHandler_Success(t *testing.T) {
 	}`)
 	req := httptest.NewRequest(http.MethodPost, "/iam/identities", body)
 	req.Header.Set("Content-Type", "application/json")
+
 	rec := httptest.NewRecorder()
 
 	server.ServeHTTP(rec, req)
@@ -68,6 +69,14 @@ func TestIdentityCreateHandler_Success(t *testing.T) {
 	} else if got.Email != "alice@example.com" || got.Name != "Alice" {
 		t.Errorf("stored identity mismatch: got %+v", got)
 	}
+
+	if ok, diff := records.Contains(slogmem.RecordQuery{
+		Level:   slog.LevelInfo,
+		Message: "Successfully created new Identity",
+		Attrs:   map[string]slog.Value{"id": slog.StringValue(newID.String())},
+	}); !ok {
+		t.Errorf("expected info log for successful creation\n%s", diff)
+	}
 }
 
 func TestIdentityCreateHandler_Errors(t *testing.T) {
@@ -80,6 +89,7 @@ func TestIdentityCreateHandler_Errors(t *testing.T) {
 		uuidErr    error
 		wantStatus int
 		wantBody   string
+		wantLog    *slogmem.RecordQuery
 	}{
 		"missing name": {
 			body:       `{"email": "x@example.com", "password": "supersecret", "passwordConfirmation": "supersecret"}`,
@@ -136,6 +146,10 @@ func TestIdentityCreateHandler_Errors(t *testing.T) {
 				"detail": "The server encountered an unexpected internal error",
 				"instance": "/iam/identities"
 			}`,
+			wantLog: &slogmem.RecordQuery{
+				Level:   slog.LevelError,
+				Message: "Failed to generate uuid for new Identity",
+			},
 		},
 		"repository returns unexpected error": {
 			body:       `{"name": "A", "email": "a@example.com", "password": "supersecret", "passwordConfirmation": "supersecret"}`,
@@ -149,6 +163,10 @@ func TestIdentityCreateHandler_Errors(t *testing.T) {
 				"detail": "The server encountered an unexpected internal error",
 				"instance": "/iam/identities"
 			}`,
+			wantLog: &slogmem.RecordQuery{
+				Level:   slog.LevelError,
+				Message: "Failed to create new Identity",
+			},
 		},
 	}
 
@@ -160,6 +178,7 @@ func TestIdentityCreateHandler_Errors(t *testing.T) {
 			if tc.seed != nil {
 				tc.seed(repo)
 			}
+
 			if tc.repoErr != nil {
 				tc.repoErr(repo)
 			}
@@ -167,15 +186,22 @@ func TestIdentityCreateHandler_Errors(t *testing.T) {
 			gen := testutil.NewUUIDV4Generator(uuid.MustParse("33333333-3333-3333-3333-333333333333"))
 			gen.Err = tc.uuidErr
 
-			server := newServer(t, repo, gen)
+			server, records := newServer(t, repo, gen)
 
 			req := httptest.NewRequest(http.MethodPost, "/iam/identities", bytes.NewBufferString(tc.body))
 			req.Header.Set("Content-Type", "application/json")
+
 			rec := httptest.NewRecorder()
 
 			server.ServeHTTP(rec, req)
 
 			testutil.ProblemResponse(t, rec, tc.wantStatus, tc.wantBody)
+
+			if tc.wantLog != nil {
+				if ok, diff := records.Contains(*tc.wantLog); !ok {
+					t.Errorf("expected log %+v\n%s", *tc.wantLog, diff)
+				}
+			}
 		})
 	}
 }
@@ -186,12 +212,13 @@ func TestIdentityMeHandler_Success(t *testing.T) {
 	repo := testutil.NewIdentityRepository()
 	repo.Seed(testutil.KnownIdentity())
 
-	server := newServer(t, repo, testutil.NewUUIDV4Generator())
+	server, _ := newServer(t, repo, testutil.NewUUIDV4Generator())
 
 	token := signTestJWT(t, testutil.KnownIdentityID)
 
 	req := httptest.NewRequest(http.MethodGet, "/iam/identities/me", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
+
 	rec := httptest.NewRecorder()
 
 	server.ServeHTTP(rec, req)
@@ -210,12 +237,13 @@ func TestIdentityMeHandler_NotFound(t *testing.T) {
 
 	repo := testutil.NewIdentityRepository()
 	// Seed with a different identity so the JWT's UUID is not findable.
-	server := newServer(t, repo, testutil.NewUUIDV4Generator())
+	server, _ := newServer(t, repo, testutil.NewUUIDV4Generator())
 
 	token := signTestJWT(t, testutil.KnownIdentityID)
 
 	req := httptest.NewRequest(http.MethodGet, "/iam/identities/me", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
+
 	rec := httptest.NewRecorder()
 
 	server.ServeHTTP(rec, req)
@@ -242,6 +270,7 @@ func signTestJWT(t *testing.T, identityID uuid.UUID) string {
 
 	type testClaims struct {
 		jwt.RegisteredClaims
+
 		UUID uuid.UUID `json:"uuid"`
 	}
 
@@ -262,5 +291,6 @@ func signTestJWT(t *testing.T, identityID uuid.UUID) string {
 	if err != nil {
 		t.Fatalf("sign test jwt: %v", err)
 	}
+
 	return signed
 }

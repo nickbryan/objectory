@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,6 +13,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+
+	"github.com/nickbryan/slogutil/slogmem"
 
 	"github.com/nickbryan/objectory/api/internal/testutil"
 )
@@ -31,7 +34,7 @@ func TestTokenCreateHandler_Success(t *testing.T) {
 	jti := uuid.MustParse("22222222-2222-2222-2222-222222222222")
 	gen := testutil.NewUUIDV4Generator(jti)
 
-	server := newServer(t, repo, gen)
+	server, _ := newServer(t, repo, gen)
 
 	body := bytes.NewBufferString(`{
 		"email": "known@example.com",
@@ -39,6 +42,7 @@ func TestTokenCreateHandler_Success(t *testing.T) {
 	}`)
 	req := httptest.NewRequest(http.MethodPost, "/iam/tokens", body)
 	req.Header.Set("Content-Type", "application/json")
+
 	rec := httptest.NewRecorder()
 
 	server.ServeHTTP(rec, req)
@@ -56,9 +60,12 @@ func TestTokenCreateHandler_Success(t *testing.T) {
 		t.Fatalf("decode response: %v", err)
 	}
 
+	// Validate exp/iat against the same fixed clock the handler signed with;
+	// otherwise this test silently expires once the wall clock passes
+	// FixedTime + 24h.
 	parsed, err := jwt.ParseWithClaims(resp.Data.Token, &tokenClaims{}, func(_ *jwt.Token) (any, error) {
 		return []byte(testutil.JWTKey), nil
-	})
+	}, jwt.WithTimeFunc(testutil.Clock()))
 	if err != nil {
 		t.Fatalf("parse jwt: %v", err)
 	}
@@ -95,6 +102,7 @@ func TestTokenCreateHandler_Errors(t *testing.T) {
 		uuidErr    error
 		wantStatus int
 		wantBody   string
+		wantLog    *slogmem.RecordQuery
 	}{
 		"missing email": {
 			body:       `{"password": "supersecret"}`,
@@ -148,6 +156,10 @@ func TestTokenCreateHandler_Errors(t *testing.T) {
 				"detail": "The server encountered an unexpected internal error",
 				"instance": "/iam/tokens"
 			}`,
+			wantLog: &slogmem.RecordQuery{
+				Level:   slog.LevelWarn,
+				Message: "Failed to find identity by email when creating new token",
+			},
 		},
 		"uuid generation fails": {
 			seed:       func(r *testutil.IdentityRepository) { r.Seed(testutil.KnownIdentity()) },
@@ -162,6 +174,10 @@ func TestTokenCreateHandler_Errors(t *testing.T) {
 				"detail": "The server encountered an unexpected internal error",
 				"instance": "/iam/tokens"
 			}`,
+			wantLog: &slogmem.RecordQuery{
+				Level:   slog.LevelWarn,
+				Message: "Failed to generate uuid for jwt token",
+			},
 		},
 	}
 
@@ -173,6 +189,7 @@ func TestTokenCreateHandler_Errors(t *testing.T) {
 			if tc.seed != nil {
 				tc.seed(repo)
 			}
+
 			if tc.repoErr != nil {
 				tc.repoErr(repo)
 			}
@@ -180,15 +197,22 @@ func TestTokenCreateHandler_Errors(t *testing.T) {
 			gen := testutil.NewUUIDV4Generator(uuid.MustParse("44444444-4444-4444-4444-444444444444"))
 			gen.Err = tc.uuidErr
 
-			server := newServer(t, repo, gen)
+			server, records := newServer(t, repo, gen)
 
 			req := httptest.NewRequest(http.MethodPost, "/iam/tokens", bytes.NewBufferString(tc.body))
 			req.Header.Set("Content-Type", "application/json")
+
 			rec := httptest.NewRecorder()
 
 			server.ServeHTTP(rec, req)
 
 			testutil.ProblemResponse(t, rec, tc.wantStatus, tc.wantBody)
+
+			if tc.wantLog != nil {
+				if ok, diff := records.Contains(*tc.wantLog); !ok {
+					t.Errorf("expected log %+v\n%s", *tc.wantLog, diff)
+				}
+			}
 		})
 	}
 }

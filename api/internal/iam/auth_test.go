@@ -2,6 +2,7 @@ package iam_test
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -9,6 +10,9 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+
+	"github.com/nickbryan/slogutil"
+	"github.com/nickbryan/slogutil/slogmem"
 
 	"github.com/nickbryan/objectory/api/internal/iam"
 	"github.com/nickbryan/objectory/api/internal/testutil"
@@ -36,6 +40,7 @@ func TestCurrentIdentityFromContext(t *testing.T) {
 			if gotOk != tc.wantOk {
 				t.Errorf("ok: got %v, want %v", gotOk, tc.wantOk)
 			}
+
 			if gotID != tc.wantID {
 				t.Errorf("id: got %s, want %s", gotID, tc.wantID)
 			}
@@ -52,8 +57,9 @@ func TestNewJWTGuard(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]struct {
-		header string
-		wantOK bool
+		header  string
+		wantOK  bool
+		wantLog *slogmem.RecordQuery
 	}{
 		"valid token populates context": {
 			header: "Bearer " + signTestJWT(t, testutil.KnownIdentityID),
@@ -62,18 +68,34 @@ func TestNewJWTGuard(t *testing.T) {
 		"missing authorization header errors": {
 			header: "",
 			wantOK: false,
+			wantLog: &slogmem.RecordQuery{
+				Level:   slog.LevelInfo,
+				Message: "Authentication denied invalid jwt",
+			},
 		},
 		"wrong signing key errors": {
 			header: "Bearer " + signJWTWithKey(t, "00000000000000000000000000000000-other"),
 			wantOK: false,
+			wantLog: &slogmem.RecordQuery{
+				Level:   slog.LevelInfo,
+				Message: "Authentication denied invalid jwt",
+			},
 		},
 		"expired token errors": {
 			header: "Bearer " + signExpiredJWT(t),
 			wantOK: false,
+			wantLog: &slogmem.RecordQuery{
+				Level:   slog.LevelInfo,
+				Message: "Authentication denied invalid jwt",
+			},
 		},
 		"malformed token errors": {
 			header: "Bearer not.a.jwt",
 			wantOK: false,
+			wantLog: &slogmem.RecordQuery{
+				Level:   slog.LevelInfo,
+				Message: "Authentication denied invalid jwt",
+			},
 		},
 	}
 
@@ -81,7 +103,8 @@ func TestNewJWTGuard(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			guard := iam.NewJWTGuard(quietLogger(), testutil.JWTKey)
+			logger, records := slogutil.NewInMemoryLogger(slog.LevelDebug)
+			guard := iam.NewJWTGuard(logger, testutil.JWTKey)
 
 			req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 			if tc.header != "" {
@@ -94,24 +117,39 @@ func TestNewJWTGuard(t *testing.T) {
 				if err != nil {
 					t.Fatalf("expected nil error, got %v", err)
 				}
+
 				if passed == nil {
 					t.Fatal("expected request, got nil")
 				}
+
 				gotID, ok := iam.CurrentIdentityFromContext(passed.Context())
 				if !ok {
 					t.Fatal("guard did not store identity in context")
 				}
+
 				if gotID != testutil.KnownIdentityID {
 					t.Errorf("identity mismatch: got %s, want %s", gotID, testutil.KnownIdentityID)
 				}
+
+				if !records.IsEmpty() {
+					t.Errorf("expected no logs on success path; got %d", records.Len())
+				}
+
 				return
 			}
 
 			if err == nil {
 				t.Fatalf("expected error, got nil; passed = %v", passed)
 			}
+
 			if passed != nil {
 				t.Errorf("expected nil request on error path, got %v", passed)
+			}
+
+			if tc.wantLog != nil {
+				if ok, diff := records.Contains(*tc.wantLog); !ok {
+					t.Errorf("expected log %+v\n%s", *tc.wantLog, diff)
+				}
 			}
 		})
 	}
@@ -122,6 +160,7 @@ func signJWTWithKey(t *testing.T, key string) string {
 
 	type testClaims struct {
 		jwt.RegisteredClaims
+
 		UUID uuid.UUID `json:"uuid"`
 	}
 
@@ -138,6 +177,7 @@ func signJWTWithKey(t *testing.T, key string) string {
 	if err != nil {
 		t.Fatalf("sign jwt: %v", err)
 	}
+
 	return signed
 }
 
@@ -146,6 +186,7 @@ func signExpiredJWT(t *testing.T) string {
 
 	type testClaims struct {
 		jwt.RegisteredClaims
+
 		UUID uuid.UUID `json:"uuid"`
 	}
 
@@ -162,5 +203,6 @@ func signExpiredJWT(t *testing.T) string {
 	if err != nil {
 		t.Fatalf("sign jwt: %v", err)
 	}
+
 	return signed
 }
