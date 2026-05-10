@@ -17,6 +17,7 @@ import (
 	"github.com/nickbryan/slogutil"
 
 	"github.com/nickbryan/objectory/api/internal/iam"
+	"github.com/nickbryan/objectory/api/internal/pgxlog"
 	"github.com/nickbryan/objectory/api/internal/storage"
 	"github.com/nickbryan/objectory/api/internal/storage/postgres"
 )
@@ -40,7 +41,7 @@ func main() {
 	}
 
 	dbConfig.ConnConfig.Tracer = &tracelog.TraceLog{
-		Logger:   &pgxSlogAdapter{logger: logger},
+		Logger:   pgxlog.NewAdapter(logger),
 		LogLevel: tracelog.LogLevelInfo,
 	}
 
@@ -77,36 +78,4 @@ func (u uuidV4Generator) GenerateUUIDV4() ([16]byte, error) {
 	}
 
 	return next, nil
-}
-
-type pgxSlogAdapter struct {
-	logger *slog.Logger
-}
-
-func (a *pgxSlogAdapter) Log(ctx context.Context, level tracelog.LogLevel, msg string, data map[string]any) {
-	attrs := make([]slog.Attr, 0, len(data))
-	for k, v := range data {
-		attrs = append(attrs, slog.Any(k, v))
-	}
-
-	var lvl slog.Level
-
-	switch level {
-	case tracelog.LogLevelNone:
-		return
-	case tracelog.LogLevelDebug:
-		lvl = slog.LevelDebug
-	case tracelog.LogLevelInfo:
-		lvl = slog.LevelInfo
-	case tracelog.LogLevelWarn:
-		lvl = slog.LevelWarn
-	case tracelog.LogLevelError:
-		lvl = slog.LevelError
-	default:
-		lvl = slog.LevelError
-
-		attrs = append(attrs, slog.Any("invalid_pgx_log_level", level))
-	}
-
-	a.logger.LogAttrs(ctx, lvl, msg, attrs...) //nolint:sloglint // Forwarding pgx tracelog messages; the dynamic msg is intentional for this adapter.
 }
