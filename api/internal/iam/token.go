@@ -45,6 +45,7 @@ func tokenCreateHandler(logger *slog.Logger, identities IdentityRepository, uuid
 			logger.WarnContext(r.Context(), "Failed to generate uuid for jwt token", slog.Any("error", err))
 			return nil, problem.ServerError(r.Request)
 		}
+
 		jti := uuid.UUID(jtiBytes)
 
 		issuedAt := now()

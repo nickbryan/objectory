@@ -41,6 +41,7 @@ func assertJSONLike(t *testing.T, rec *httptest.ResponseRecorder, wantStatus int
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatalf("decode response body: %v\nbody: %s", err, rec.Body.String())
 	}
+
 	if err := json.Unmarshal([]byte(wantJSON), &want); err != nil {
 		t.Fatalf("decode want JSON: %v\njson: %s", err, wantJSON)
 	}

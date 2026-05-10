@@ -20,7 +20,7 @@ const JWTKey = "test-jwt-key-32-bytes-padding!!!"
 const KnownPassword = "correct-horse-battery-staple"
 
 // FixedTime is the canonical instant used by tests that inject a clock.
-var FixedTime = time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC)
+var FixedTime = time.Date(2026, time.May, 9, 12, 0, 0, 0, time.UTC)
 
 // Clock returns a now() function that always returns FixedTime, suitable for
 // passing to iam.Endpoints or storage.NewIdentityRepository in tests.
@@ -38,6 +38,7 @@ func init() {
 	if err != nil {
 		panic("testutil: precomputing fixture password hash: " + err.Error())
 	}
+
 	knownIdentityHash = hash
 }
 
