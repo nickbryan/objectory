@@ -2018,7 +2018,7 @@ git commit -m "test(testutil): add Postgres testcontainer + per-test database li
 **Files:**
 - Create: `api/internal/storage/identity_integration_test.go`
 
-- [ ] **Step 1: Write the integration test file**
+- [x] **Step 1: Write the integration test file**
 
 Write `api/internal/storage/identity_integration_test.go`:
 
@@ -2242,12 +2242,12 @@ func TestIdentityRepository_FindByEmail(t *testing.T) {
 Add `"github.com/google/uuid"` to imports.
 
 
-- [ ] **Step 2: Run the integration suite**
+- [x] **Step 2: Run the integration suite**
 
 Run: `go test -race -shuffle=on -tags=integration ./api/internal/storage/...`
 Expected: PASS for all cases. Docker daemon must be reachable; if not, the testcontainer setup fails fast with a clear error.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add api/internal/storage/identity_integration_test.go
@@ -2262,7 +2262,7 @@ git commit -m "test(api/storage): integration tests for IdentityRepository"
 - Create: `api/tests/identities_test.go`
 - Create: `api/tests/tokens_test.go`
 
-- [ ] **Step 1: Write the identities feature tests**
+- [x] **Step 1: Write the identities feature tests**
 
 Write `api/tests/identities_test.go`:
 
@@ -2401,7 +2401,7 @@ func TestRegister_DuplicateEmailReturns409(t *testing.T) {
 
 The helper returns the `*pgxpool.Pool` so tests inspect the same database the server wrote to. The pool's lifetime is tied to `t` via `testutil.NewTestDB`'s cleanup, so no explicit teardown is needed.
 
-- [ ] **Step 2: Write the tokens / identity-me feature tests**
+- [x] **Step 2: Write the tokens / identity-me feature tests**
 
 Write `api/tests/tokens_test.go`:
 
@@ -2531,17 +2531,17 @@ func TestMe_ReturnsCurrentIdentityForValidToken(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run the feature suite**
+- [x] **Step 3: Run the feature suite**
 
 Run: `go test -race -shuffle=on -tags=integration ./api/tests/...`
 Expected: all tests PASS.
 
-- [ ] **Step 4: Run the full integration suite to confirm cross-package coexistence**
+- [x] **Step 4: Run the full integration suite to confirm cross-package coexistence**
 
 Run: `go test -race -shuffle=on -tags=integration ./...`
 Expected: all PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add api/tests/
@@ -2556,7 +2556,7 @@ git commit -m "test(api): feature tests for register, login, and identity-me flo
 - Modify: `Makefile`
 - Modify: `.gitignore`
 
-- [ ] **Step 1: Replace the test target in the Makefile**
+- [x] **Step 1: Replace the test target in the Makefile**
 
 Edit `Makefile`. Remove the existing `testdbname=...` line and the `test:` block. Replace with:
 
@@ -2576,7 +2576,7 @@ test-cover: ##@Test Run all tests with coverage; produces coverage.out and cover
 	go tool cover -html=coverage.out -o coverage.html
 ```
 
-- [ ] **Step 2: Update .gitignore**
+- [x] **Step 2: Update .gitignore**
 
 Edit `.gitignore` (or create if missing). Append:
 
@@ -2585,7 +2585,7 @@ coverage.out
 coverage.html
 ```
 
-- [ ] **Step 3: Verify the targets work**
+- [x] **Step 3: Verify the targets work**
 
 Run: `make test`
 Expected: all unit tests pass.
@@ -2596,7 +2596,7 @@ Expected: all unit + integration tests pass (Docker daemon required).
 Run: `make test-cover`
 Expected: all tests pass; `coverage.out` written; `coverage.html` written; coverage summary printed to stdout.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add Makefile .gitignore
@@ -2613,7 +2613,7 @@ git commit -m "build: add test, test-integration, and test-cover make targets"
 - Create: `docs/adr/0004-testing-conventions.md`
 - Create: `docs/adr/0005-iam-configurable-seams.md`
 
-- [ ] **Step 1: Write ADR-0002**
+- [x] **Step 1: Write ADR-0002**
 
 Write `docs/adr/0002-test-taxonomy.md`:
 
@@ -2652,7 +2652,7 @@ Test packages always use the `_test` suffix (e.g. `iam_test`, `storage_test`, `t
 - Developers iterating on a single package use `go test ./<pkg>/...` for fast feedback; full integration runs are explicit.
 ```
 
-- [ ] **Step 2: Write ADR-0003**
+- [x] **Step 2: Write ADR-0003**
 
 Write `docs/adr/0003-postgres-test-isolation.md`:
 
@@ -2692,7 +2692,7 @@ Migrations are embedded in the migrations package itself (`api/internal/storage/
 - If a test leaks (panic mid-cleanup), an orphan `test_<random>` database remains. The reaper container cleans it up after container idle timeout, or it survives until next manual cleanup. Acceptable.
 ```
 
-- [ ] **Step 3: Write ADR-0004**
+- [x] **Step 3: Write ADR-0004**
 
 Write `docs/adr/0004-testing-conventions.md`:
 
@@ -2737,7 +2737,7 @@ Each rule prevents a specific failure mode:
 - If a test ever needs fuzzy time matching (e.g. asserting "this happened at most N seconds ago"), prefer fixing the production seam first. Only fall back to fuzziness when injection genuinely cannot reach the call site.
 ```
 
-- [ ] **Step 4: Write ADR-0005**
+- [x] **Step 4: Write ADR-0005**
 
 Write `docs/adr/0005-iam-configurable-seams.md`:
 
@@ -2788,12 +2788,12 @@ The `storage.IdentityRepository` constructor already takes a `now func()`; the s
 - `synctest` remains available as a tool for future tests that need to *advance* fake time mid-test (rate-limit windows, refresh-token expiry tests). It's not the default approach for "what value gets stamped here."
 ```
 
-- [ ] **Step 5: Verify ADRs render**
+- [x] **Step 5: Verify ADRs render**
 
 Run: `ls docs/adr/`
 Expected: `0001-...md`, `0002-...md`, `0003-...md`, `0004-...md`, `0005-...md`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add docs/adr/
@@ -2804,7 +2804,7 @@ git commit -m "docs(adr): record test taxonomy, isolation, conventions, and iam 
 
 ## Final verification
 
-- [ ] **Step 1: Run the full test matrix**
+- [x] **Step 1: Run the full test matrix**
 
 ```bash
 make test
@@ -2814,17 +2814,17 @@ make test-cover
 
 Expected: all targets succeed. Inspect `coverage.html` to confirm `iam`, `storage`, `pgxlog`, and `uuidgen` are at or above 90%.
 
-- [ ] **Step 2: Confirm `go vet` passes**
+- [x] **Step 2: Confirm `go vet` passes**
 
 Run: `go vet ./...`
 Expected: no warnings.
 
-- [ ] **Step 3: Confirm linter passes**
+- [x] **Step 3: Confirm linter passes**
 
 Run: `make lint`
 Expected: no findings (or only pre-existing findings unrelated to test code).
 
-- [ ] **Step 4: Update TODO.md**
+- [x] **Step 4: Update TODO.md**
 
 Remove the implicit "no tests anywhere" gap from `TODO.md` if it was noted. The auth-tests work removes a major prerequisite for several security-hardening items already listed there; leave those as-is.
 
@@ -2839,11 +2839,11 @@ Expected: working tree clean if no further changes needed.
 
 Before handing this plan off, the implementer should confirm:
 
-- [ ] Every task ends with a single commit. No multi-task commits.
-- [ ] Every test file uses `_test` package suffix.
-- [ ] Every test calls `t.Parallel()`.
-- [ ] No use of `testify/assert` or any mocking framework crept in.
-- [ ] `cmp.Diff` is the only comparison helper.
-- [ ] `iam.Endpoints` callers (production + tests) all pass the same six arguments in the same order.
-- [ ] `coverage.html` shows ≥90% on `iam`, `storage`, `pgxlog`, `uuidgen`.
-- [ ] No `time.Now()` or `uuid.NewRandom()` calls remain inside `iam` package code (only in `main.go` and `uuidgen`).
+- [x] Every task ends with a single commit. No multi-task commits.
+- [x] Every test file uses `_test` package suffix.
+- [x] Every test calls `t.Parallel()`.
+- [x] No use of `testify/assert` or any mocking framework crept in.
+- [x] `cmp.Diff` is the only comparison helper.
+- [x] `iam.Endpoints` callers (production + tests) all pass the same six arguments in the same order.
+- [x] `coverage.html` shows ≥90% on `iam`, `storage`, `pgxlog`, `uuidgen`.
+- [x] No `time.Now()` or `uuid.NewRandom()` calls remain inside `iam` package code (only in `main.go` and `uuidgen`).
