@@ -110,6 +110,8 @@ linters:
             - github.com/nickbryan/httputil
             - github.com/nickbryan/objectory
             - github.com/nickbryan/slogutil
+            - github.com/pressly/goose/v3
+            - github.com/testcontainers/testcontainers-go
             - golang.org/x/crypto/bcrypt
     embeddedstructfieldcheck:
       empty-line: true
