@@ -96,7 +96,7 @@ func TestNewJWTGuard(t *testing.T) {
 			logger, records := slogutil.NewInMemoryLogger(slog.LevelDebug)
 			guard := iam.NewJWTGuard(logger, testutil.JWTKey)
 
-			req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/protected", nil)
 			if tc.header != "" {
 				req.Header.Set("Authorization", tc.header)
 			}

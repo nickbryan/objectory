@@ -40,7 +40,7 @@ func TestTokenCreateHandler_Success(t *testing.T) {
 		"email": "known@example.com",
 		"password": "correct-horse-battery-staple"
 	}`)
-	req := httptest.NewRequest(http.MethodPost, "/iam/tokens", body)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/iam/tokens", body)
 	req.Header.Set("Content-Type", "application/json")
 
 	rec := httptest.NewRecorder()
@@ -98,15 +98,7 @@ func TestTokenCreateHandler_Errors(t *testing.T) {
 	errRepo := errors.New("connection refused")
 	errUUID := errors.New("entropy exhausted")
 
-	cases := map[string]struct {
-		seed       func(*testutil.IdentityRepository)
-		body       string
-		repoErr    func(*testutil.IdentityRepository)
-		uuidErr    error
-		wantStatus int
-		wantBody   string
-		wantLog    *slogmem.RecordQuery
-	}{
+	cases := map[string]handlerErrorCase{
 		"missing email": {
 			body:       `{"password": "supersecret"}`,
 			wantStatus: http.StatusUnprocessableEntity,
@@ -186,38 +178,5 @@ func TestTokenCreateHandler_Errors(t *testing.T) {
 		},
 	}
 
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
-			repo := testutil.NewIdentityRepository()
-			if tc.seed != nil {
-				tc.seed(repo)
-			}
-
-			if tc.repoErr != nil {
-				tc.repoErr(repo)
-			}
-
-			gen := testutil.NewUUIDV4Generator(uuid.MustParse("44444444-4444-4444-4444-444444444444"))
-			gen.Err = tc.uuidErr
-
-			server, records := newServer(t, repo, gen)
-
-			req := httptest.NewRequest(http.MethodPost, "/iam/tokens", bytes.NewBufferString(tc.body))
-			req.Header.Set("Content-Type", "application/json")
-
-			rec := httptest.NewRecorder()
-
-			server.ServeHTTP(rec, req)
-
-			testutil.ProblemResponse(t, rec, tc.wantStatus, tc.wantBody)
-
-			if tc.wantLog != nil {
-				if ok, diff := records.Contains(*tc.wantLog); !ok {
-					t.Errorf("expected log %+v\n%s", *tc.wantLog, diff)
-				}
-			}
-		})
-	}
+	runHandlerErrorCases(t, "/iam/tokens", uuid.MustParse("44444444-4444-4444-4444-444444444444"), cases)
 }

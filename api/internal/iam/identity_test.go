@@ -53,7 +53,7 @@ func TestIdentityCreateHandler_Success(t *testing.T) {
 		"password": "supersecret",
 		"passwordConfirmation": "supersecret"
 	}`)
-	req := httptest.NewRequest(http.MethodPost, "/iam/identities", body)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/iam/identities", body)
 	req.Header.Set("Content-Type", "application/json")
 
 	rec := httptest.NewRecorder()
@@ -85,15 +85,7 @@ func TestIdentityCreateHandler_Errors(t *testing.T) {
 	errUUID := errors.New("entropy exhausted")
 	errRepo := errors.New("connection refused")
 
-	cases := map[string]struct {
-		seed       func(*testutil.IdentityRepository)
-		body       string
-		repoErr    func(*testutil.IdentityRepository)
-		uuidErr    error
-		wantStatus int
-		wantBody   string
-		wantLog    *slogmem.RecordQuery
-	}{
+	cases := map[string]handlerErrorCase{
 		"missing name": {
 			body:       `{"email": "x@example.com", "password": "supersecret", "passwordConfirmation": "supersecret"}`,
 			wantStatus: http.StatusUnprocessableEntity,
@@ -175,40 +167,7 @@ func TestIdentityCreateHandler_Errors(t *testing.T) {
 		},
 	}
 
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
-			repo := testutil.NewIdentityRepository()
-			if tc.seed != nil {
-				tc.seed(repo)
-			}
-
-			if tc.repoErr != nil {
-				tc.repoErr(repo)
-			}
-
-			gen := testutil.NewUUIDV4Generator(uuid.MustParse("33333333-3333-3333-3333-333333333333"))
-			gen.Err = tc.uuidErr
-
-			server, records := newServer(t, repo, gen)
-
-			req := httptest.NewRequest(http.MethodPost, "/iam/identities", bytes.NewBufferString(tc.body))
-			req.Header.Set("Content-Type", "application/json")
-
-			rec := httptest.NewRecorder()
-
-			server.ServeHTTP(rec, req)
-
-			testutil.ProblemResponse(t, rec, tc.wantStatus, tc.wantBody)
-
-			if tc.wantLog != nil {
-				if ok, diff := records.Contains(*tc.wantLog); !ok {
-					t.Errorf("expected log %+v\n%s", *tc.wantLog, diff)
-				}
-			}
-		})
-	}
+	runHandlerErrorCases(t, "/iam/identities", uuid.MustParse("33333333-3333-3333-3333-333333333333"), cases)
 }
 
 func TestIdentityMeHandler_Success(t *testing.T) {
@@ -221,7 +180,7 @@ func TestIdentityMeHandler_Success(t *testing.T) {
 
 	token := signTestJWT(t, testutil.KnownIdentityID)
 
-	req := httptest.NewRequest(http.MethodGet, "/iam/identities/me", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/iam/identities/me", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	rec := httptest.NewRecorder()
@@ -246,7 +205,7 @@ func TestIdentityMeHandler_NotFound(t *testing.T) {
 
 	token := signTestJWT(t, testutil.KnownIdentityID)
 
-	req := httptest.NewRequest(http.MethodGet, "/iam/identities/me", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/iam/identities/me", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	rec := httptest.NewRecorder()

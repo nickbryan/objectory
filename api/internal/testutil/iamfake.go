@@ -10,6 +10,11 @@ import (
 	"github.com/nickbryan/objectory/api/internal/iam"
 )
 
+// errOutOfUUIDs is returned by UUIDV4Generator when its pre-seeded slice is
+// exhausted. Tests that hit it have either under-seeded the fake or called
+// the generator more times than expected.
+var errOutOfUUIDs = errors.New("testutil.UUIDV4Generator: ran out of pre-seeded UUIDs")
+
 // IdentityRepository is an in-memory fake of iam.IdentityRepository with
 // optional error injection. Default behavior mirrors the real repository:
 // duplicate emails return iam.ErrDuplicateIdentity, missing rows return
@@ -30,8 +35,12 @@ type IdentityRepository struct {
 // NewIdentityRepository returns an empty fake.
 func NewIdentityRepository() *IdentityRepository {
 	return &IdentityRepository{
-		byID:    make(map[uuid.UUID]iam.Identity),
-		byEmail: make(map[string]uuid.UUID),
+		mu:             sync.Mutex{},
+		byID:           make(map[uuid.UUID]iam.Identity),
+		byEmail:        make(map[string]uuid.UUID),
+		CreateErr:      nil,
+		FindErr:        nil,
+		FindByEmailErr: nil,
 	}
 }
 
@@ -45,6 +54,9 @@ func (r *IdentityRepository) Seed(identity iam.Identity) {
 	r.byEmail[identity.Email] = identity.ID
 }
 
+// Create stores identity, returning iam.ErrDuplicateIdentity if an identity
+// with the same email already exists. If CreateErr is set, returns it
+// without touching the store.
 func (r *IdentityRepository) Create(_ context.Context, identity iam.Identity) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -63,6 +75,8 @@ func (r *IdentityRepository) Create(_ context.Context, identity iam.Identity) er
 	return nil
 }
 
+// Find returns the identity with the given id, or iam.ErrIdentityNotFound
+// when missing. If FindErr is set, returns it without touching the store.
 func (r *IdentityRepository) Find(_ context.Context, id uuid.UUID) (*iam.Identity, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -79,6 +93,9 @@ func (r *IdentityRepository) Find(_ context.Context, id uuid.UUID) (*iam.Identit
 	return &identity, nil
 }
 
+// FindByEmail returns the identity with the given email, or
+// iam.ErrIdentityNotFound when missing. If FindByEmailErr is set, returns it
+// without touching the store.
 func (r *IdentityRepository) FindByEmail(_ context.Context, email string) (*iam.Identity, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -111,9 +128,16 @@ type UUIDV4Generator struct {
 
 // NewUUIDV4Generator returns a generator pre-seeded with the given UUIDs.
 func NewUUIDV4Generator(uuids ...uuid.UUID) *UUIDV4Generator {
-	return &UUIDV4Generator{UUIDs: uuids}
+	return &UUIDV4Generator{
+		mu:    sync.Mutex{},
+		UUIDs: uuids,
+		idx:   0,
+		Err:   nil,
+	}
 }
 
+// GenerateUUIDV4 returns the next pre-seeded UUID, or Err when set.
+// Returns errOutOfUUIDs once the seeded slice is exhausted.
 func (g *UUIDV4Generator) GenerateUUIDV4() ([16]byte, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -123,7 +147,7 @@ func (g *UUIDV4Generator) GenerateUUIDV4() ([16]byte, error) {
 	}
 
 	if g.idx >= len(g.UUIDs) {
-		return [16]byte{}, errors.New("testutil.UUIDV4Generator: ran out of pre-seeded UUIDs")
+		return [16]byte{}, errOutOfUUIDs
 	}
 
 	next := g.UUIDs[g.idx]

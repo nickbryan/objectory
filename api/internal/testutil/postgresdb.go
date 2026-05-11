@@ -155,7 +155,9 @@ func ensureTemplate(ctx context.Context) error {
 	if _, err := lockConn.ExecContext(ctx, "SELECT pg_advisory_lock($1)", templateMigrationLockID); err != nil {
 		return fmt.Errorf("acquire migration lock: %w", err)
 	}
-	defer func() {
+	// Unlock must run even if ctx has been canceled; use a fresh background
+	// context so cleanup still executes.
+	defer func() { //nolint:contextcheck // intentional: cleanup must outlive ctx
 		_, _ = lockConn.ExecContext(context.Background(), "SELECT pg_advisory_unlock($1)", templateMigrationLockID)
 	}()
 

@@ -3,7 +3,12 @@
 // shelling out to the goose CLI.
 package migrations
 
-import "embed"
+import (
+	"embed"
+)
 
+// FS embeds the *.sql migration files in this directory so that goose-based
+// runners can apply them without shelling out to the goose CLI.
+//
 //go:embed *.sql
 var FS embed.FS
