@@ -34,6 +34,10 @@ const (
 	// where the server bounces during initdb.
 	containerReadyOccurrences = 2
 	containerStartupTimeout   = 60 * time.Second
+	// templateMigrationLockID is the advisory-lock key used to serialize
+	// goose migrations on the template DB across concurrent test binaries
+	// (sync.Once only synchronizes within a single process).
+	templateMigrationLockID int64 = 0x6F626A_74656D70 // "obj_temp"
 )
 
 // Package-level state intentionally guards the one-time-per-process container
@@ -166,6 +170,22 @@ func ensureTemplate(ctx context.Context) error {
 		return fmt.Errorf("open template db: %w", err)
 	}
 	defer func() { _ = db.Close() }()
+
+	// Hold a session-scoped advisory lock on a single pinned connection while
+	// goose migrates. Concurrent test binaries hitting the shared template DB
+	// would otherwise race goose_db_version creation.
+	lockConn, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("acquire migration lock conn: %w", err)
+	}
+	defer func() { _ = lockConn.Close() }()
+
+	if _, err := lockConn.ExecContext(ctx, "SELECT pg_advisory_lock($1)", templateMigrationLockID); err != nil {
+		return fmt.Errorf("acquire migration lock: %w", err)
+	}
+	defer func() {
+		_, _ = lockConn.ExecContext(context.Background(), "SELECT pg_advisory_unlock($1)", templateMigrationLockID)
+	}()
 
 	goose.SetBaseFS(pgmigrations.FS)
 
