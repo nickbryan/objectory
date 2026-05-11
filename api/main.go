@@ -3,12 +3,10 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/tracelog"
 	"golang.org/x/crypto/bcrypt"
@@ -20,6 +18,7 @@ import (
 	"github.com/nickbryan/objectory/api/internal/pgxlog"
 	"github.com/nickbryan/objectory/api/internal/storage"
 	"github.com/nickbryan/objectory/api/internal/storage/postgres"
+	"github.com/nickbryan/objectory/api/internal/uuidgen"
 )
 
 const (
@@ -63,19 +62,8 @@ func main() {
 	identityRepository := storage.NewIdentityRepository(database, time.Now)
 
 	server.Register(
-		iam.Endpoints(logger, uuidV4Generator{}, identityRepository, jwtKey, bcrypt.DefaultCost, time.Now)...,
+		iam.Endpoints(logger, uuidgen.New(), identityRepository, jwtKey, bcrypt.DefaultCost, time.Now)...,
 	)
 
 	server.Serve(ctx)
-}
-
-type uuidV4Generator struct{}
-
-func (u uuidV4Generator) GenerateUUIDV4() ([16]byte, error) {
-	next, err := uuid.NewRandom()
-	if err != nil {
-		return [16]byte{}, fmt.Errorf("creating new random uuid: %w", err)
-	}
-
-	return next, nil
 }
