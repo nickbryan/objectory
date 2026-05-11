@@ -36,6 +36,7 @@ func TestIdentityRepository_Create(t *testing.T) {
 		"duplicate email returns ErrDuplicateIdentity": {
 			seed: func(t *testing.T, r *storage.IdentityRepository) {
 				t.Helper()
+
 				err := r.Create(context.Background(), iam.Identity{
 					ID:       testutil.KnownIdentityID,
 					Name:     "First",
@@ -85,6 +86,7 @@ func TestIdentityRepository_Create(t *testing.T) {
 				gotCreatedAt pgtype.Timestamp
 				gotUpdatedAt pgtype.Timestamp
 			)
+
 			err = pool.QueryRow(context.Background(),
 				`SELECT id, email, name, password, created_at, updated_at FROM iam.identities WHERE id = $1`,
 				pgtype.UUID{Bytes: tc.input.ID, Valid: true},
@@ -96,12 +98,15 @@ func TestIdentityRepository_Create(t *testing.T) {
 			if diff := cmp.Diff(tc.input.Email, gotEmail); diff != "" {
 				t.Errorf("email mismatch:\n%s", diff)
 			}
+
 			if diff := cmp.Diff(tc.input.Name, gotName); diff != "" {
 				t.Errorf("name mismatch:\n%s", diff)
 			}
+
 			if !gotCreatedAt.Time.Equal(testutil.FixedTime) {
 				t.Errorf("created_at: got %v, want %v", gotCreatedAt.Time, testutil.FixedTime)
 			}
+
 			if !gotUpdatedAt.Time.Equal(testutil.FixedTime) {
 				t.Errorf("updated_at: got %v, want %v", gotUpdatedAt.Time, testutil.FixedTime)
 			}
@@ -121,6 +126,7 @@ func TestIdentityRepository_Find(t *testing.T) {
 		"finds an existing identity": {
 			seed: func(t *testing.T, r *storage.IdentityRepository) {
 				t.Helper()
+
 				if err := r.Create(context.Background(), testutil.KnownIdentity()); err != nil {
 					t.Fatalf("seed: %v", err)
 				}
@@ -149,10 +155,12 @@ func TestIdentityRepository_Find(t *testing.T) {
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("err: got %v, want %v", err, tc.wantErr)
 			}
+
 			if tc.wantOK {
 				if got == nil {
 					t.Fatal("expected identity, got nil")
 				}
+
 				if got.Email != "known@example.com" {
 					t.Errorf("email: got %s, want known@example.com", got.Email)
 				}
@@ -173,6 +181,7 @@ func TestIdentityRepository_FindByEmail(t *testing.T) {
 		"finds an existing identity by email": {
 			seed: func(t *testing.T, r *storage.IdentityRepository) {
 				t.Helper()
+
 				if err := r.Create(context.Background(), testutil.KnownIdentity()); err != nil {
 					t.Fatalf("seed: %v", err)
 				}
@@ -201,10 +210,12 @@ func TestIdentityRepository_FindByEmail(t *testing.T) {
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("err: got %v, want %v", err, tc.wantErr)
 			}
+
 			if tc.wantOK {
 				if got == nil {
 					t.Fatal("expected identity, got nil")
 				}
+
 				if got.ID != testutil.KnownIdentityID {
 					t.Errorf("id: got %s, want %s", got.ID, testutil.KnownIdentityID)
 				}

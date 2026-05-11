@@ -64,6 +64,7 @@ func TestRegister_CreatesIdentityAndPersistsHashedPassword(t *testing.T) {
 	}`)
 	req := httptest.NewRequest(http.MethodPost, "/iam/identities", body)
 	req.Header.Set("Content-Type", "application/json")
+
 	rec := httptest.NewRecorder()
 
 	server.ServeHTTP(rec, req)
@@ -87,9 +88,11 @@ func TestRegister_CreatesIdentityAndPersistsHashedPassword(t *testing.T) {
 	if gotEmail != "alice@example.com" {
 		t.Errorf("email mismatch: got %q", gotEmail)
 	}
+
 	if gotName != "Alice" {
 		t.Errorf("name mismatch: got %q", gotName)
 	}
+
 	if err := bcrypt.CompareHashAndPassword([]byte(gotPassword), []byte("supersecret")); err != nil {
 		t.Errorf("password hash does not match plaintext: %v", err)
 	}
@@ -108,8 +111,10 @@ func TestRegister_DuplicateEmailReturns409(t *testing.T) {
 	}`)
 	req1 := httptest.NewRequest(http.MethodPost, "/iam/identities", first)
 	req1.Header.Set("Content-Type", "application/json")
+
 	rec1 := httptest.NewRecorder()
 	server.ServeHTTP(rec1, req1)
+
 	if rec1.Code != http.StatusCreated {
 		t.Fatalf("first registration: status %d\nbody: %s", rec1.Code, rec1.Body.String())
 	}
@@ -122,6 +127,7 @@ func TestRegister_DuplicateEmailReturns409(t *testing.T) {
 	}`)
 	req2 := httptest.NewRequest(http.MethodPost, "/iam/identities", second)
 	req2.Header.Set("Content-Type", "application/json")
+
 	rec2 := httptest.NewRecorder()
 	server.ServeHTTP(rec2, req2)
 

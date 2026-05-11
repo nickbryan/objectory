@@ -28,6 +28,7 @@ func TestLogin_ReturnsTokenForValidCredentials(t *testing.T) {
 	}`)
 	req := httptest.NewRequest(http.MethodPost, "/iam/tokens", body)
 	req.Header.Set("Content-Type", "application/json")
+
 	rec := httptest.NewRecorder()
 
 	server.ServeHTTP(rec, req)
@@ -44,6 +45,7 @@ func TestLogin_ReturnsTokenForValidCredentials(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
+
 	if resp.Data.Token == "" {
 		t.Error("expected non-empty token")
 	}
@@ -64,6 +66,7 @@ func TestLogin_WrongPasswordReturns401(t *testing.T) {
 	}`)
 	req := httptest.NewRequest(http.MethodPost, "/iam/tokens", body)
 	req.Header.Set("Content-Type", "application/json")
+
 	rec := httptest.NewRecorder()
 
 	server.ServeHTTP(rec, req)
@@ -90,11 +93,14 @@ func TestMe_ReturnsCurrentIdentityForValidToken(t *testing.T) {
 	loginReq := httptest.NewRequest(http.MethodPost, "/iam/tokens",
 		bytes.NewBufferString(`{"email": "known@example.com", "password": "correct-horse-battery-staple"}`))
 	loginReq.Header.Set("Content-Type", "application/json")
+
 	loginRec := httptest.NewRecorder()
 	server.ServeHTTP(loginRec, loginReq)
+
 	if loginRec.Code != http.StatusCreated {
 		t.Fatalf("login: status %d\nbody: %s", loginRec.Code, loginRec.Body.String())
 	}
+
 	var loginResp struct {
 		Data struct {
 			Token string `json:"token"`
@@ -106,6 +112,7 @@ func TestMe_ReturnsCurrentIdentityForValidToken(t *testing.T) {
 
 	meReq := httptest.NewRequest(http.MethodGet, "/iam/identities/me", nil)
 	meReq.Header.Set("Authorization", "Bearer "+loginResp.Data.Token)
+
 	meRec := httptest.NewRecorder()
 	server.ServeHTTP(meRec, meReq)
 
