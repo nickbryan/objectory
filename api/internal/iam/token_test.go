@@ -95,6 +95,9 @@ func TestTokenCreateHandler_Success(t *testing.T) {
 func TestTokenCreateHandler_Errors(t *testing.T) {
 	t.Parallel()
 
+	errRepo := errors.New("connection refused")
+	errUUID := errors.New("entropy exhausted")
+
 	cases := map[string]struct {
 		seed       func(*testutil.IdentityRepository)
 		body       string
@@ -146,7 +149,7 @@ func TestTokenCreateHandler_Errors(t *testing.T) {
 		},
 		"repository unexpected error": {
 			body:       `{"email": "x@example.com", "password": "supersecret"}`,
-			repoErr:    func(r *testutil.IdentityRepository) { r.FindByEmailErr = errors.New("connection refused") },
+			repoErr:    func(r *testutil.IdentityRepository) { r.FindByEmailErr = errRepo },
 			wantStatus: http.StatusInternalServerError,
 			wantBody: `{
 				"type": "https://github.com/nickbryan/httputil/blob/main/docs/problems/server-error.md",
@@ -159,12 +162,13 @@ func TestTokenCreateHandler_Errors(t *testing.T) {
 			wantLog: &slogmem.RecordQuery{
 				Level:   slog.LevelWarn,
 				Message: "Failed to find identity by email when creating new token",
+				Attrs:   map[string]slog.Value{"error": slog.AnyValue(errRepo)},
 			},
 		},
 		"uuid generation fails": {
 			seed:       func(r *testutil.IdentityRepository) { r.Seed(testutil.KnownIdentity()) },
 			body:       `{"email": "known@example.com", "password": "correct-horse-battery-staple"}`,
-			uuidErr:    errors.New("entropy exhausted"),
+			uuidErr:    errUUID,
 			wantStatus: http.StatusInternalServerError,
 			wantBody: `{
 				"type": "https://github.com/nickbryan/httputil/blob/main/docs/problems/server-error.md",
@@ -177,6 +181,7 @@ func TestTokenCreateHandler_Errors(t *testing.T) {
 			wantLog: &slogmem.RecordQuery{
 				Level:   slog.LevelWarn,
 				Message: "Failed to generate uuid for jwt token",
+				Attrs:   map[string]slog.Value{"error": slog.AnyValue(errUUID)},
 			},
 		},
 	}

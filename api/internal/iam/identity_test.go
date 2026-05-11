@@ -82,6 +82,9 @@ func TestIdentityCreateHandler_Success(t *testing.T) {
 func TestIdentityCreateHandler_Errors(t *testing.T) {
 	t.Parallel()
 
+	errUUID := errors.New("entropy exhausted")
+	errRepo := errors.New("connection refused")
+
 	cases := map[string]struct {
 		seed       func(*testutil.IdentityRepository)
 		body       string
@@ -136,7 +139,7 @@ func TestIdentityCreateHandler_Errors(t *testing.T) {
 		},
 		"uuid generation fails": {
 			body:       `{"name": "A", "email": "a@example.com", "password": "supersecret", "passwordConfirmation": "supersecret"}`,
-			uuidErr:    errors.New("entropy exhausted"),
+			uuidErr:    errUUID,
 			wantStatus: http.StatusInternalServerError,
 			wantBody: `{
 				"type": "https://github.com/nickbryan/httputil/blob/main/docs/problems/server-error.md",
@@ -149,11 +152,12 @@ func TestIdentityCreateHandler_Errors(t *testing.T) {
 			wantLog: &slogmem.RecordQuery{
 				Level:   slog.LevelError,
 				Message: "Failed to generate uuid for new Identity",
+				Attrs:   map[string]slog.Value{"error": slog.AnyValue(errUUID)},
 			},
 		},
 		"repository returns unexpected error": {
 			body:       `{"name": "A", "email": "a@example.com", "password": "supersecret", "passwordConfirmation": "supersecret"}`,
-			repoErr:    func(r *testutil.IdentityRepository) { r.CreateErr = errors.New("connection refused") },
+			repoErr:    func(r *testutil.IdentityRepository) { r.CreateErr = errRepo },
 			wantStatus: http.StatusInternalServerError,
 			wantBody: `{
 				"type": "https://github.com/nickbryan/httputil/blob/main/docs/problems/server-error.md",
@@ -166,6 +170,7 @@ func TestIdentityCreateHandler_Errors(t *testing.T) {
 			wantLog: &slogmem.RecordQuery{
 				Level:   slog.LevelError,
 				Message: "Failed to create new Identity",
+				Attrs:   map[string]slog.Value{"error": slog.AnyValue(errRepo)},
 			},
 		},
 	}

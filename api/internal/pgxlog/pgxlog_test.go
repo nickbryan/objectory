@@ -17,6 +17,8 @@ import (
 func TestAdapter_Log(t *testing.T) {
 	t.Parallel()
 
+	errBoom := errors.New("boom")
+
 	cases := map[string]struct {
 		level    tracelog.LogLevel
 		msg      string
@@ -58,10 +60,11 @@ func TestAdapter_Log(t *testing.T) {
 		"error maps to error": {
 			level: tracelog.LogLevelError,
 			msg:   "query failed",
-			data:  map[string]any{"err": errors.New("boom")},
+			data:  map[string]any{"err": errBoom},
 			want: slogmem.RecordQuery{
 				Level:   slog.LevelError,
 				Message: "query failed",
+				Attrs:   map[string]slog.Value{"err": slog.AnyValue(errBoom)},
 			},
 		},
 		"unknown level maps to error and includes invalid_pgx_log_level": {

@@ -2,6 +2,7 @@ package iam_test
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v5/request"
 	"github.com/google/uuid"
 
 	"github.com/nickbryan/slogutil"
@@ -57,45 +59,33 @@ func TestNewJWTGuard(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]struct {
-		header  string
-		wantOK  bool
-		wantLog *slogmem.RecordQuery
+		header     string
+		wantOK     bool
+		wantErrLog error // sentinel the auth-denied log's "error" attr must wrap
 	}{
 		"valid token populates context": {
 			header: "Bearer " + signTestJWT(t, testutil.KnownIdentityID),
 			wantOK: true,
 		},
 		"missing authorization header errors": {
-			header: "",
-			wantOK: false,
-			wantLog: &slogmem.RecordQuery{
-				Level:   slog.LevelInfo,
-				Message: "Authentication denied invalid jwt",
-			},
+			header:     "",
+			wantOK:     false,
+			wantErrLog: request.ErrNoTokenInRequest,
 		},
 		"wrong signing key errors": {
-			header: "Bearer " + signJWTWithKey(t, "00000000000000000000000000000000-other"),
-			wantOK: false,
-			wantLog: &slogmem.RecordQuery{
-				Level:   slog.LevelInfo,
-				Message: "Authentication denied invalid jwt",
-			},
+			header:     "Bearer " + signJWTWithKey(t, "00000000000000000000000000000000-other"),
+			wantOK:     false,
+			wantErrLog: jwt.ErrTokenSignatureInvalid,
 		},
 		"expired token errors": {
-			header: "Bearer " + signExpiredJWT(t),
-			wantOK: false,
-			wantLog: &slogmem.RecordQuery{
-				Level:   slog.LevelInfo,
-				Message: "Authentication denied invalid jwt",
-			},
+			header:     "Bearer " + signExpiredJWT(t),
+			wantOK:     false,
+			wantErrLog: jwt.ErrTokenExpired,
 		},
 		"malformed token errors": {
-			header: "Bearer not.a.jwt",
-			wantOK: false,
-			wantLog: &slogmem.RecordQuery{
-				Level:   slog.LevelInfo,
-				Message: "Authentication denied invalid jwt",
-			},
+			header:     "Bearer not.a.jwt",
+			wantOK:     false,
+			wantErrLog: jwt.ErrTokenMalformed,
 		},
 	}
 
@@ -146,13 +136,41 @@ func TestNewJWTGuard(t *testing.T) {
 				t.Errorf("expected nil request on error path, got %v", passed)
 			}
 
-			if tc.wantLog != nil {
-				if ok, diff := records.Contains(*tc.wantLog); !ok {
-					t.Errorf("expected log %+v\n%s", *tc.wantLog, diff)
-				}
+			if tc.wantErrLog != nil {
+				assertAuthDeniedLog(t, records, tc.wantErrLog)
 			}
 		})
 	}
+}
+
+// assertAuthDeniedLog asserts that records contains an INFO log with message
+// "Authentication denied invalid jwt" whose "error" attr wraps target (per
+// errors.Is). The walk goes through AsSliceOfNestedKeyValuePairs because
+// slogmem.RecordQuery compares attr values by equality, which doesn't match
+// wrapped errors returned by the jwt parser.
+func assertAuthDeniedLog(t *testing.T, records *slogmem.LoggedRecords, target error) {
+	t.Helper()
+
+	for _, r := range records.AsSliceOfNestedKeyValuePairs() {
+		if lvl, _ := r["level"].(slog.Level); lvl != slog.LevelInfo {
+			continue
+		}
+
+		if msg, _ := r["msg"].(string); msg != "Authentication denied invalid jwt" {
+			continue
+		}
+
+		e, ok := r["error"].(error)
+		if !ok {
+			continue
+		}
+
+		if errors.Is(e, target) {
+			return
+		}
+	}
+
+	t.Errorf("no auth-denied log with error wrapping %v\nrecords: %+v", target, records.AsSliceOfNestedKeyValuePairs())
 }
 
 func signJWTWithKey(t *testing.T, key string) string {
