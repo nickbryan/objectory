@@ -138,6 +138,27 @@ func setupTemplate(ctx context.Context) error {
 }
 
 func ensureTemplate(ctx context.Context) error {
+	// Open the lock connection on the admin "postgres" DB via database/sql so
+	// the advisory lock is held on a single pinned session. Holding it on a
+	// pgxpool connection would risk the pool reassigning the conn; holding it
+	// on template_iam would block CREATE DATABASE ... TEMPLATE in peer
+	// processes (Postgres rejects TEMPLATE clones while the source DB has
+	// open connections).
+	lockConn, err := sql.Open("pgx", baseDSN+"/postgres")
+	if err != nil {
+		return fmt.Errorf("open admin lock conn: %w", err)
+	}
+	defer func() { _ = lockConn.Close() }()
+
+	lockConn.SetMaxOpenConns(1)
+
+	if _, err := lockConn.ExecContext(ctx, "SELECT pg_advisory_lock($1)", templateMigrationLockID); err != nil {
+		return fmt.Errorf("acquire migration lock: %w", err)
+	}
+	defer func() {
+		_, _ = lockConn.ExecContext(context.Background(), "SELECT pg_advisory_unlock($1)", templateMigrationLockID)
+	}()
+
 	adminPool, err := pgxpool.New(ctx, baseDSN+"/postgres")
 	if err != nil {
 		return fmt.Errorf("connect admin pool: %w", err)
@@ -151,17 +172,8 @@ func ensureTemplate(ctx context.Context) error {
 	}
 
 	if !exists {
-		// Race-tolerant: another process may create the template concurrently.
-		// On duplicate_database (SQLSTATE 42P04), re-check existence; only
-		// surface the original error if the template still isn't there.
 		if _, err := adminPool.Exec(ctx, fmt.Sprintf(`CREATE DATABASE %q`, templateDBName)); err != nil {
-			var stillExists bool
-
-			_ = adminPool.QueryRow(ctx,
-				"SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)", templateDBName).Scan(&stillExists)
-			if !stillExists {
-				return fmt.Errorf("create template db: %w", err)
-			}
+			return fmt.Errorf("create template db: %w", err)
 		}
 	}
 
@@ -170,22 +182,6 @@ func ensureTemplate(ctx context.Context) error {
 		return fmt.Errorf("open template db: %w", err)
 	}
 	defer func() { _ = db.Close() }()
-
-	// Hold a session-scoped advisory lock on a single pinned connection while
-	// goose migrates. Concurrent test binaries hitting the shared template DB
-	// would otherwise race goose_db_version creation.
-	lockConn, err := db.Conn(ctx)
-	if err != nil {
-		return fmt.Errorf("acquire migration lock conn: %w", err)
-	}
-	defer func() { _ = lockConn.Close() }()
-
-	if _, err := lockConn.ExecContext(ctx, "SELECT pg_advisory_lock($1)", templateMigrationLockID); err != nil {
-		return fmt.Errorf("acquire migration lock: %w", err)
-	}
-	defer func() {
-		_, _ = lockConn.ExecContext(context.Background(), "SELECT pg_advisory_unlock($1)", templateMigrationLockID)
-	}()
 
 	goose.SetBaseFS(pgmigrations.FS)
 
