@@ -57,7 +57,7 @@
 **Files:**
 - Modify: `go.mod`, `go.sum`
 
-- [ ] **Step 1: Add testcontainers-go and promote go-cmp**
+- [x] **Step 1: Add testcontainers-go and promote go-cmp**
 
 Run:
 
@@ -71,12 +71,12 @@ go mod tidy
 
 Expected: `go.mod` shows `github.com/google/go-cmp` and the two `testcontainers-go` packages as direct dependencies. `go.sum` updates accordingly.
 
-- [ ] **Step 2: Verify build still works**
+- [x] **Step 2: Verify build still works**
 
 Run: `go build ./...`
 Expected: clean build, no output.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add go.mod go.sum
@@ -90,7 +90,7 @@ git commit -m "chore(deps): add go-cmp and testcontainers-go for the test suite"
 **Files:**
 - Create: `api/internal/storage/postgres/migrations/migrations.go`
 
-- [ ] **Step 1: Create the embed file**
+- [x] **Step 1: Create the embed file**
 
 Write `api/internal/storage/postgres/migrations/migrations.go`:
 
@@ -106,12 +106,12 @@ import "embed"
 var FS embed.FS
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `go build ./api/internal/storage/postgres/migrations/...`
 Expected: clean build.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add api/internal/storage/postgres/migrations/migrations.go
@@ -125,7 +125,7 @@ git commit -m "refactor(api/migrations): expose migration files as embed.FS"
 **Files:**
 - Create: `api/internal/testutil/fixtures.go`
 
-- [ ] **Step 1: Write the file**
+- [x] **Step 1: Write the file**
 
 Write `api/internal/testutil/fixtures.go`:
 
@@ -186,12 +186,12 @@ func KnownIdentity() iam.Identity {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `go build ./api/internal/testutil/...`
 Expected: clean build.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add api/internal/testutil/fixtures.go
@@ -205,7 +205,7 @@ git commit -m "test(testutil): add fixtures for JWT key, clock, and known identi
 **Files:**
 - Create: `api/internal/testutil/iamfake.go`
 
-- [ ] **Step 1: Write the file**
+- [x] **Step 1: Write the file**
 
 Write `api/internal/testutil/iamfake.go`:
 
@@ -327,12 +327,12 @@ func (g *UUIDV4Generator) GenerateUUIDV4() ([16]byte, error) {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `go build ./api/internal/testutil/...`
 Expected: clean build.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add api/internal/testutil/iamfake.go
@@ -346,7 +346,7 @@ git commit -m "test(testutil): add hybrid in-memory + error-injection iam fakes"
 **Files:**
 - Create: `api/internal/testutil/httpassert.go`
 
-- [ ] **Step 1: Write the file**
+- [x] **Step 1: Write the file**
 
 Write `api/internal/testutil/httpassert.go`:
 
@@ -404,12 +404,12 @@ func assertJSONLike(t *testing.T, rec *httptest.ResponseRecorder, wantStatus int
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `go build ./api/internal/testutil/...`
 Expected: clean build.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add api/internal/testutil/httpassert.go
@@ -429,7 +429,7 @@ This task does TDD-style: write a unit test for `identityCreateHandler` against 
 - Modify: `api/internal/iam/token.go` (signature update only — UUID generator wiring lands in Task 7)
 - Modify: `api/main.go`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Write `api/internal/iam/identity_test.go`:
 
@@ -504,12 +504,12 @@ func TestIdentityCreateHandler_Success(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run the test, expect a compile failure**
+- [x] **Step 2: Run the test, expect a compile failure**
 
 Run: `go test ./api/internal/iam/...`
 Expected: build error referencing `iam.Endpoints` (currently 4 params, test passes 6).
 
-- [ ] **Step 3: Update `NewPasswordHash` and `identityCreateHandler` together**
+- [x] **Step 3: Update `NewPasswordHash` and `identityCreateHandler` together**
 
 Both edits happen in `api/internal/iam/identity.go` and must land in the same change so the file compiles.
 
@@ -583,7 +583,7 @@ func identityCreateHandler(logger *slog.Logger, uuidGenerator UUIDV4Generator, i
 }
 ```
 
-- [ ] **Step 4: Update `iam.Endpoints` signature**
+- [x] **Step 4: Update `iam.Endpoints` signature**
 
 Edit `api/internal/iam/endpoints.go`. Replace the existing `Endpoints` with:
 
@@ -645,7 +645,7 @@ import (
 )
 ```
 
-- [ ] **Step 5: Update `tokenCreateHandler` signature (body unchanged for now)**
+- [x] **Step 5: Update `tokenCreateHandler` signature (body unchanged for now)**
 
 Edit `api/internal/iam/token.go`. Change the function signature only — the body still uses `time.Now()` and `uuid.NewRandom()` after this step, which is fine because Task 7 finishes wiring the new params into the body:
 
@@ -662,7 +662,7 @@ func tokenCreateHandler(logger *slog.Logger, identities IdentityRepository, uuid
 	// ... rest of body unchanged
 ```
 
-- [ ] **Step 6: Update `main.go`**
+- [x] **Step 6: Update `main.go`**
 
 Edit `api/main.go`. Replace the `server.Register(...)` line:
 
@@ -696,17 +696,17 @@ import (
 )
 ```
 
-- [ ] **Step 7: Run the test, expect it to pass**
+- [x] **Step 7: Run the test, expect it to pass**
 
 Run: `go test -race -shuffle=on ./api/internal/iam/... -run TestIdentityCreateHandler_Success`
 Expected: PASS.
 
-- [ ] **Step 8: Run full build to verify nothing else broke**
+- [x] **Step 8: Run full build to verify nothing else broke**
 
 Run: `go build ./...`
 Expected: clean build.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add api/internal/iam/identity.go api/internal/iam/endpoints.go api/internal/iam/token.go api/main.go api/internal/iam/identity_test.go
@@ -721,7 +721,7 @@ git commit -m "refactor(api/iam): inject bcrypt cost into Endpoints; add identit
 - Modify: `api/internal/iam/token.go`
 - Create (append to): `api/internal/iam/token_test.go`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Write `api/internal/iam/token_test.go`:
 
@@ -822,12 +822,12 @@ func jsonUnmarshal(data []byte, v any) error {
 
 …and add `"encoding/json"` to `identity_test.go`'s imports.
 
-- [ ] **Step 2: Run the test, expect failure**
+- [x] **Step 2: Run the test, expect failure**
 
 Run: `go test -race ./api/internal/iam/... -run TestTokenCreateHandler_Success`
 Expected: test runs but fails on the `cmp.Diff` — `IssuedAt` and `ExpiresAt` will be real wall-clock time (not `FixedTime`), and `ID` will be a random UUID (not `jti`).
 
-- [ ] **Step 3: Wire the generator and clock into `tokenCreateHandler`**
+- [x] **Step 3: Wire the generator and clock into `tokenCreateHandler`**
 
 Edit `api/internal/iam/token.go`. Replace the body's `uuid.NewRandom()` and `time.Now()` calls; remove the `_ = ...` placeholders:
 
@@ -893,12 +893,12 @@ func tokenCreateHandler(logger *slog.Logger, identities IdentityRepository, uuid
 
 Replace `"github.com/google/uuid"` import to keep using `uuid.UUID` for the conversion.
 
-- [ ] **Step 4: Run the test, expect pass**
+- [x] **Step 4: Run the test, expect pass**
 
 Run: `go test -race ./api/internal/iam/... -run TestTokenCreateHandler_Success`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add api/internal/iam/token.go api/internal/iam/token_test.go api/internal/iam/identity_test.go
@@ -912,7 +912,7 @@ git commit -m "refactor(api/iam): inject UUID generator and clock into tokenCrea
 **Files:**
 - Modify: `api/internal/iam/identity_test.go`
 
-- [ ] **Step 1: Add table-driven validation and error-path tests**
+- [x] **Step 1: Add table-driven validation and error-path tests**
 
 Append to `api/internal/iam/identity_test.go`:
 
@@ -1026,14 +1026,14 @@ func TestIdentityCreateHandler_Errors(t *testing.T) {
 
 Add `"errors"` to the imports of `identity_test.go` if not already present.
 
-- [ ] **Step 2: Run the tests**
+- [x] **Step 2: Run the tests**
 
 Run: `go test -race -shuffle=on ./api/internal/iam/... -run TestIdentityCreateHandler_Errors`
 Expected: PASS for all five cases.
 
 If any case's `wantBody` doesn't match what `httputil/problem` actually emits, update `wantBody` to match the real shape — the helper's `cmp.Diff` failure output will show the exact difference. The shapes above are the documented contract; the test acts as a contract test against `httputil/problem`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add api/internal/iam/identity_test.go
@@ -1047,7 +1047,7 @@ git commit -m "test(api/iam): cover identityCreateHandler error paths"
 **Files:**
 - Modify: `api/internal/iam/token_test.go`
 
-- [ ] **Step 1: Add table-driven error tests**
+- [x] **Step 1: Add table-driven error tests**
 
 Append to `api/internal/iam/token_test.go`:
 
@@ -1158,12 +1158,12 @@ func TestTokenCreateHandler_Errors(t *testing.T) {
 
 Add `"bytes"`, `"errors"`, `"net/http"`, `"net/http/httptest"`, `"github.com/google/uuid"` imports if not already present in `token_test.go`.
 
-- [ ] **Step 2: Run the tests**
+- [x] **Step 2: Run the tests**
 
 Run: `go test -race -shuffle=on ./api/internal/iam/... -run TestTokenCreateHandler_Errors`
 Expected: PASS for all five cases. Adjust `wantBody` strings as needed if the actual `httputil/problem` shape differs from the comments above.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add api/internal/iam/token_test.go
@@ -1177,7 +1177,7 @@ git commit -m "test(api/iam): cover tokenCreateHandler error paths"
 **Files:**
 - Modify: `api/internal/iam/identity_test.go`
 
-- [ ] **Step 1: Add the success and error tests**
+- [x] **Step 1: Add the success and error tests**
 
 Append to `api/internal/iam/identity_test.go`:
 
@@ -1264,12 +1264,12 @@ func signTestJWT(t *testing.T, identityID uuid.UUID) string {
 
 Add `"time"`, `"github.com/golang-jwt/jwt/v5"`, `"github.com/google/uuid"` to `identity_test.go`'s imports.
 
-- [ ] **Step 2: Run the tests**
+- [x] **Step 2: Run the tests**
 
 Run: `go test -race -shuffle=on ./api/internal/iam/... -run TestIdentityMeHandler`
 Expected: both pass.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add api/internal/iam/identity_test.go
@@ -1283,7 +1283,7 @@ git commit -m "test(api/iam): cover identityMeHandler success and not-found path
 **Files:**
 - Create: `api/internal/iam/auth_test.go`
 
-- [ ] **Step 1: Write the file**
+- [x] **Step 1: Write the file**
 
 Write `api/internal/iam/auth_test.go`:
 
@@ -1456,7 +1456,7 @@ func signExpiredJWT(t *testing.T) string {
 
 > The rendered 403 problem-JSON shape is covered indirectly by the feature tests in Task 16 (any unauthenticated GET to `/iam/identities/me` exercises the guard's error path through the full httputil stack). The unit test here intentionally stays at the `GuardFunc` seam.
 
-- [ ] **Step 2: Run the tests**
+- [x] **Step 2: Run the tests**
 
 Run: `go test -race -shuffle=on ./api/internal/iam/... -run TestNewJWTGuard`
 Expected: PASS for valid case; for the invalid cases, the test asserts `err != nil` which is what the guard returns. If you can render the problem response cleanly via httputil, replace those branches with `testutil.ProblemResponse` assertions.
@@ -1466,7 +1466,7 @@ Also run:
 Run: `go test -race -shuffle=on ./api/internal/iam/... -run TestCurrentIdentityFromContext`
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add api/internal/iam/auth_test.go
@@ -1482,7 +1482,7 @@ git commit -m "test(api/iam): cover NewJWTGuard and CurrentIdentityFromContext"
 - Create: `api/internal/log/pgxlog/pgxlog_test.go`
 - Modify: `api/main.go`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Write `api/internal/log/pgxlog/pgxlog_test.go`:
 
@@ -1590,12 +1590,12 @@ func TestAdapter_Log(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run the test, expect failure (package doesn't exist)**
+- [x] **Step 2: Run the test, expect failure (package doesn't exist)**
 
 Run: `go test ./api/internal/log/pgxlog/...`
 Expected: build error: `package pgxlog is not in std`.
 
-- [ ] **Step 3: Create the package**
+- [x] **Step 3: Create the package**
 
 Write `api/internal/log/pgxlog/pgxlog.go`:
 
@@ -1651,12 +1651,12 @@ func (a *Adapter) Log(ctx context.Context, level tracelog.LogLevel, msg string, 
 }
 ```
 
-- [ ] **Step 4: Run the test, expect pass**
+- [x] **Step 4: Run the test, expect pass**
 
 Run: `go test -race -shuffle=on ./api/internal/log/pgxlog/...`
 Expected: PASS for all six cases.
 
-- [ ] **Step 5: Update main.go to use the new package**
+- [x] **Step 5: Update main.go to use the new package**
 
 Edit `api/main.go`. Remove the `pgxSlogAdapter` type and methods at the bottom. Replace the `Tracer` line:
 
@@ -1669,12 +1669,12 @@ dbConfig.ConnConfig.Tracer = &tracelog.TraceLog{
 
 Add the import `"github.com/nickbryan/objectory/api/internal/log/pgxlog"`.
 
-- [ ] **Step 6: Verify build and existing tests still pass**
+- [x] **Step 6: Verify build and existing tests still pass**
 
 Run: `go build ./... && go test -race -shuffle=on ./...`
 Expected: clean build; all tests pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add api/internal/log/pgxlog/ api/main.go
@@ -1690,7 +1690,7 @@ git commit -m "refactor(api): extract pgxSlogAdapter to api/internal/log/pgxlog"
 - Create: `api/internal/uuidgen/uuidgen_test.go`
 - Modify: `api/main.go`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Write `api/internal/uuidgen/uuidgen_test.go`:
 
@@ -1745,12 +1745,12 @@ func TestNew_GenerateUUIDV4_ReturnsUnique(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run, expect package-not-found failure**
+- [x] **Step 2: Run, expect package-not-found failure**
 
 Run: `go test ./api/internal/uuidgen/...`
 Expected: build error.
 
-- [ ] **Step 3: Create the package**
+- [x] **Step 3: Create the package**
 
 Write `api/internal/uuidgen/uuidgen.go`:
 
@@ -1787,12 +1787,12 @@ func (generator) GenerateUUIDV4() ([16]byte, error) {
 }
 ```
 
-- [ ] **Step 4: Run, expect pass**
+- [x] **Step 4: Run, expect pass**
 
 Run: `go test -race -shuffle=on ./api/internal/uuidgen/...`
 Expected: PASS.
 
-- [ ] **Step 5: Update main.go**
+- [x] **Step 5: Update main.go**
 
 Edit `api/main.go`. Remove the `uuidV4Generator` type and method at the bottom. Replace the `Endpoints` call:
 
@@ -1804,12 +1804,12 @@ server.Register(
 
 Add the import `"github.com/nickbryan/objectory/api/internal/uuidgen"`. Remove the now-unused `"fmt"` and `"github.com/google/uuid"` imports if no other usage remains.
 
-- [ ] **Step 6: Verify build and tests**
+- [x] **Step 6: Verify build and tests**
 
 Run: `go build ./... && go test -race -shuffle=on ./...`
 Expected: clean build; all tests pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add api/internal/uuidgen/ api/main.go
@@ -1823,7 +1823,7 @@ git commit -m "refactor(api): extract uuidV4Generator to api/internal/uuidgen"
 **Files:**
 - Create: `api/internal/testutil/postgresdb.go`
 
-- [ ] **Step 1: Write the file**
+- [x] **Step 1: Write the file**
 
 Write `api/internal/testutil/postgresdb.go`:
 
@@ -1999,12 +1999,12 @@ func randHex(n int) string {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `go build ./api/internal/testutil/...`
 Expected: clean build.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add api/internal/testutil/postgresdb.go
