@@ -52,12 +52,19 @@ tidy: ##@Go
 update: ##@Go
 	docker compose exec api go get -u
 
-testdbname=objectory_test
-test: ##@Test
-	@make -s psql cmd="CREATE DATABASE $(testdbname)"
-	@make -s migrate dbname=$(testdbname)
-	-docker compose exec api go test -count=1 ./...
-	@make -s psql cmd="DROP DATABASE $(testdbname)"
+test: ##@Test Run unit tests (no docker, no integration tag)
+	go test -race -shuffle=on ./...
+
+test-integration: ##@Test Run unit and integration tests (boots a Postgres testcontainer)
+	go test -race -shuffle=on -tags=integration ./...
+
+test-cover: ##@Test Run all tests with coverage; produces coverage.out and coverage.html
+	go test -race -shuffle=on -tags=integration \
+	    -coverprofile=coverage.out \
+	    -coverpkg=./api/internal/iam,./api/internal/storage,./api/internal/pgxlog,./api/internal/uuidgen \
+	    ./...
+	go tool cover -func=coverage.out
+	go tool cover -html=coverage.out -o coverage.html
 
 psql: guard-cmd ##@Database
 	docker compose exec database psql "postgres://objectory:secret@localhost:5432/objectory?sslmode=disable" -c "$(cmd)"
